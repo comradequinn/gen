@@ -1,4 +1,4 @@
-package llm_test
+package gemini_test
 
 import (
 	"encoding/json"
@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/comradequinn/gen/llm"
-	"github.com/comradequinn/gen/llm/internal/resource"
-	"github.com/comradequinn/gen/llm/internal/schema"
+	"github.com/comradequinn/gen/gemini"
+	"github.com/comradequinn/gen/gemini/internal/resource"
+	"github.com/comradequinn/gen/gemini/internal/schema"
 )
 
 type MockFileInfo struct{ name string }
@@ -24,13 +24,13 @@ func (m MockFileInfo) ModTime() time.Time { return time.Time{} }
 func (m MockFileInfo) IsDir() bool        { return false }
 func (m MockFileInfo) Sys() any           { return nil }
 
-func TestLLM(t *testing.T) {
-	resource.Deps.OS_Stat = func(name string) (os.FileInfo, error) {
+func TestGenerate(t *testing.T) {
+	resource.FileIO.Stat = func(name string) (os.FileInfo, error) {
 		return MockFileInfo{
 			name: name,
 		}, nil
 	}
-	resource.Deps.OS_Open = func(name string) (io.ReadCloser, error) {
+	resource.FileIO.Open = func(name string) (io.ReadCloser, error) {
 		return io.NopCloser(strings.NewReader("test-data")), nil
 	}
 
@@ -68,20 +68,16 @@ func TestLLM(t *testing.T) {
 	svr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/test-generate-url/":
-			if r.URL.Query().Get("model") != llm.Models.Flash {
-				t.Fatalf("expected model to be %v. got %v", llm.Models.Flash, r.URL.Query()["model"][0])
-			}
-
 			if r.URL.Query().Get("api-key") != "test=api-key" {
 				t.Fatalf("expected api key to be %v. got %v", "test=api-key", r.URL.Query()["api-key"][0])
 			}
 
 			if err := json.NewDecoder(r.Body).Decode(&actualRq); err != nil {
-				t.Fatalf("unable to decode llm stub request body. %v", err)
+				t.Fatalf("unable to decode gemini stub request body. %v", err)
 			}
 
 			if err := json.NewEncoder(w).Encode(&expectedResponse); err != nil {
-				t.Fatalf("unable to encode llm stub response body. %v", err)
+				t.Fatalf("unable to encode gemini stub response body. %v", err)
 			}
 		case r.URL.Path == "/test-start-upload-url/":
 			w.Header().Set("X-Goog-Upload-Url", svr.URL+"/test-upload-url/")
@@ -100,34 +96,28 @@ func TestLLM(t *testing.T) {
 	}))
 	defer svr.Close()
 
-	cfg := llm.Config{
-		APIKey:        "test=api-key",
-		APIURL:        svr.URL + "/test-generate-url/?model=%v&api-key=%v",
-		UploadURL:     svr.URL + "/test-start-upload-url/?api-key=%v",
-		ResponseStyle: "test-style",
-		SystemPrompt:  "test-system-prompt",
-		Model:         llm.Models.Flash,
-		MaxTokens:     1000,
-		Temperature:   1.0,
-		TopP:          1.0,
-		Grounding:     true,
-		User: llm.User{
-			Name:        "test-name",
-			Location:    "test-location",
-			Description: "test-description",
-		},
-		DebugPrintf: func(string, ...any) {},
+	cfg := gemini.Config{
+		Credential:     "test=api-key",
+		GeminiURL:      svr.URL + "/test-generate-url/?model=gemini&api-key={api-key}",
+		FileStorageURL: svr.URL + "/test-start-upload-url/?api-key=%v",
+		Platform:       gemini.PlatformGenerativeLanguage,
+		SystemPrompt:   "test-system-prompt",
+		MaxTokens:      1000,
+		Temperature:    1.0,
+		TopP:           1.0,
+		Grounding:      true,
+		UseCase:        "you are helping a test-user in test-location with test-description",
 	}
 
-	prompt := llm.Prompt{
+	prompt := gemini.Prompt{
 		Text: "test prompt",
-		History: []llm.Message{
+		History: []gemini.Message{
 			{
-				Role: llm.RoleUser,
+				Role: gemini.RoleUser,
 				Text: "test-history-1",
 			},
 			{
-				Role: llm.RoleModel,
+				Role: gemini.RoleModel,
 				Text: "test-history-2",
 			},
 		},
@@ -142,7 +132,7 @@ func TestLLM(t *testing.T) {
 		}
 	}
 
-	assertResponse := func(t *testing.T, rs llm.Response, err error) {
+	assertResponse := func(t *testing.T, rs gemini.Response, err error) {
 		assert(t, err == nil, "expected no error generating response. got %v", err)
 		assert(t, actualRq.GenerationConfig.MaxOutputTokens == cfg.MaxTokens, "expected max output tokens to be %v. got %v", cfg.MaxTokens, actualRq.GenerationConfig.MaxOutputTokens)
 		assert(t, actualRq.GenerationConfig.Temperature == cfg.Temperature, "expected temperature to be %v. got %v", cfg.Temperature, actualRq.GenerationConfig.Temperature)
@@ -165,32 +155,29 @@ func TestLLM(t *testing.T) {
 		systemPrompt := actualRq.SystemInstruction.Parts[0].Text
 
 		assert(t, strings.Contains(systemPrompt, cfg.SystemPrompt), "expected system prompt %q to contain %q", systemPrompt, cfg.SystemPrompt)
-		assert(t, strings.Contains(systemPrompt, cfg.User.Name), "expected system prompt to contain %v", cfg.User.Name)
-		assert(t, strings.Contains(systemPrompt, cfg.User.Location), "expected system prompt to contain %v", cfg.User.Location)
-		assert(t, strings.Contains(systemPrompt, cfg.User.Description), "expected system prompt to contain %v", cfg.User.Description)
-		assert(t, strings.Contains(systemPrompt, cfg.ResponseStyle), "expected system prompt to contain %v", cfg.ResponseStyle)
+		assert(t, strings.Contains(systemPrompt, cfg.UseCase), "expected system prompt to contain %v", cfg.UseCase)
 		assert(t, len(actualRq.Contents) == 3, "expected 3 content entries. got %v", len(actualRq.Contents))
 
 		for i := range len(prompt.History) {
-			assert(t, actualRq.Contents[i].Role == string(prompt.History[i].Role), "expected role to be %v. got %v", llm.RoleUser, actualRq.Contents[0].Role)
+			assert(t, actualRq.Contents[i].Role == string(prompt.History[i].Role), "expected role to be %v. got %v", gemini.RoleUser, actualRq.Contents[0].Role)
 			assert(t, actualRq.Contents[i].Parts[0].Text == string(prompt.History[i].Text), "expected text to be %v. got %v", prompt.Text, actualRq.Contents[0].Parts[0].Text)
 		}
 
-		assert(t, actualRq.Contents[2].Role == string(llm.RoleUser), "expected role to be %v. got %v", llm.RoleUser, actualRq.Contents[0].Role)
+		assert(t, actualRq.Contents[2].Role == string(gemini.RoleUser), "expected role to be %v. got %v", gemini.RoleUser, actualRq.Contents[0].Role)
 		assert(t, actualRq.Contents[2].Parts[0].Text == prompt.Text, "expected text to be %v. got %v", prompt.Text, actualRq.Contents[0].Parts[0].Text)
 		assert(t, actualRq.Contents[2].Parts[1].File.URI == expectedFileURI, "expected file uri to be %v. got %v", expectedFileURI, actualRq.Contents[2].Parts[1].File.URI)
 		assert(t, rs.Text == expectedResponse.Candidates[0].Content.Parts[0].Text+expectedResponse.Candidates[0].Content.Parts[1].Text, "expected response text to be %v. got %v", expectedResponse.Candidates[0].Content.Parts[0].Text+expectedResponse.Candidates[0].Content.Parts[1].Text, rs.Text)
 		assert(t, rs.Tokens == expectedResponse.UsageMetadata.TotalTokenCount, "expected response token count to be %v. got %v", expectedResponse.UsageMetadata.TotalTokenCount, rs.Tokens)
 	}
 
-	rs, err := llm.Generate(cfg, prompt)
+	rs, err := gemini.Generate(cfg, prompt, func(string, ...any) {})
 
 	assertResponse(t, rs, err)
 
 	cfg.Grounding = false
 	prompt.Schema = `{"type":"object","properties":{"response":{"type":"string"}}}`
 
-	rs, err = llm.Generate(cfg, prompt)
+	rs, err = gemini.Generate(cfg, prompt, func(string, ...any) {})
 
 	assertResponse(t, rs, err)
 }

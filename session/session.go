@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/comradequinn/gen/llm"
+	"github.com/comradequinn/gen/gemini"
 )
 
 type (
 	Entry struct {
 		Prompt   string
-		Files    []llm.FileReference
+		Files    []gemini.FileReference
 		Response string
 	}
 	Record struct {
@@ -49,12 +49,12 @@ func Write(appDir string, entry Entry) error {
 	jsonEncoder := json.NewEncoder(f)
 	jsonEncoder.SetIndent("", "  ")
 
-	if err := jsonEncoder.Encode(append(messages, llm.Message{
-		Role:  llm.RoleUser,
+	if err := jsonEncoder.Encode(append(messages, gemini.Message{
+		Role:  gemini.RoleUser,
 		Text:  entry.Prompt,
 		Files: entry.Files,
-	}, llm.Message{
-		Role: llm.RoleModel,
+	}, gemini.Message{
+		Role: gemini.RoleModel,
 		Text: entry.Response,
 	})); err != nil {
 		return fmt.Errorf("unable to encode session file. %w", err)
@@ -64,7 +64,7 @@ func Write(appDir string, entry Entry) error {
 }
 
 // Read returns all messages in the active session
-func Read(appDir string) ([]llm.Message, error) {
+func Read(appDir string) ([]gemini.Message, error) {
 	f, err := openActiveSessionFile(appDir, os.O_RDONLY)
 
 	if err != nil {
@@ -73,11 +73,11 @@ func Read(appDir string) ([]llm.Message, error) {
 
 	defer f.Close()
 
-	messages := []llm.Message{}
+	messages := []gemini.Message{}
 
 	if err := json.NewDecoder(f).Decode(&messages); err != nil {
 		if err == io.EOF {
-			return []llm.Message{}, nil
+			return []gemini.Message{}, nil
 		}
 
 		return nil, fmt.Errorf("unable to decode session file. %w", err)
@@ -109,7 +109,7 @@ func List(appDir string) ([]Record, error) {
 
 		defer sessionFile.Close()
 
-		messages := []llm.Message{}
+		messages := []gemini.Message{}
 
 		if err := json.NewDecoder(sessionFile).Decode(&messages); err != nil && err != io.EOF {
 			return "", fmt.Errorf("unable to decode session file. %v %v", sessionFile, err)

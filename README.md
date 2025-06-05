@@ -1,8 +1,8 @@
 # gen
 
-Named `gen` (from `generate`), `gen` is a command-line `llm` interface built on Google's `Gemini 2.5` models. 
+Named `gen` (from `generate`), `gen` is a command-line `llm` interface built on Google's `Gemini` models. 
 
-Using `gen` greatly simplifies integrating LLMs into CI pipelines, scripts or other automation. 
+Using `gen` greatly simplifies integrating LLM capabilities into CI pipelines, scripts or other automation. 
 
 For terminal users, `gen` acts as a simple but fully-featured interactive assistant.
 
@@ -22,11 +22,11 @@ Using `gen` provides the following features:
     * Basic schemas can be defined using a simple schema definition language
     * Complex schemas can be defined using OpenAPI Schema objects expressed as JSON (either inline or in dedicated files)
   * Interactive-mode activity indicators can be disabled to aid effective redirection and piping
-* Full support for attaching files and directories to prompts
+* Support for attaching one or many files to prompts
   * Interrogate individual code, markdown and text files or entire workspaces
   * Describe image files and PDFs
-* Personalisation of responses
-  * Specify persistent, personal or contextual information and style preferences to tailor your responses
+* System prompt configuration
+  * Specify general and user/use-case based system prompt content
 * Model configuration
   * Specify custom model configurations to fine-tune output
 
@@ -37,16 +37,20 @@ To install `gen`, download the appropriate tarball for your `os` from the [relea
 Optionally, you can use the below script to do that for you
 
 ```bash
-export VERSION="v1.1.2"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
+export VERSION="v1.2.0"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
 ```
 
-### API Keys
+### Authentication
 
-In order to use `gen` you will require your `Gemini API Key`. If you do not already have one, these are available free from [Google](https://aistudio.google.com/apikey). 
+You can configure `gen` to access the `Gemini API` either via the publicly available `Generative Language API` endpoints (as used by `Google AI Studio`) or via a `Vertex AI` endpoint managed within a `Google Cloud Platform (GCP)` project.
 
-Once you have the key, set and export it as the conventional environment variable for that value, `GEMINI_API_KEY`.
+#### Generative Language API (Google AI Studio)
 
-For convenience, you may wish to add this to your `~/.bashrc` file. An example is shown below. 
+To use `gen` via the `Generative Language API`, set and export your `Gemini API Key` as the conventional environment variable for that value: `GEMINI_API_KEY`.
+
+If you do not already have a `Gemini API Key`, they are available free from [Google AI Studio](https://aistudio.google.com), [here](https://aistudio.google.com/apikey). 
+
+For convenience, you may wish to add the envar definition to your `~/.bashrc` file. An example of doing this is shown below. 
 
 ```bash
 # file: ~/.bashrc
@@ -55,6 +59,40 @@ export GEMINI_API_KEY="myPriVatEApI_keY_1234567890"
 ```
 
 Remember that you will need to open a new terminal or `source` the `~/.bashrc` file for the above to take effect.
+
+Once this is done, `gen` will default to using the `Generative Language API` and your `GEMINI_API_KEY` unless you explicitly specifiy `Vertex AI (Google Cloud Platform)` credentials to use instead; in which case they will take precedence.
+
+#### Vertex AI (Google Cloud Platform)
+
+To use `gen` with a `Vertex AI` `Gemini API` endpoint, firstly configure `ADC (application default credentials)` on your workstation, if you have not already done so, by running the below.
+
+```bash
+gcloud auth application-default login --disable-quota-project
+```
+
+You can then render `access tokens` using `gcloud auth application-default print-access-token`. These can be passed to `gen` using a `--vertex-access-token` (or `-a`) argument. A `GCP Project` and a `GCS Bucket` must also be specified, using `--gcp-project` (or `-p`) and `--gcs-bucket` (or `-b`), respectively. An example is shown below.
+
+```bash
+gen --new --vertex-access-token "$(gcloud auth application-default print-access-token)" --gcp-project "my-project" --gcs-bucket "my-bucket" "what is the weather like in London tomorrow?"
+```
+
+When you specify `Vertex AI` credentials, they take precedence over any `GEMINI_API_KEY` you may have set to authenticate with the `Generative Language API`.
+
+##### Configuring Defaults
+
+As with any command executed via a `posix` compliant shell, `aliases` can be used to assign defaults arguments. An example is shown below that configures a default `access-token` and `gcp-project`.
+
+```bash
+# file: ~/.bashrc
+
+alias gen='gen --vertex-access-token "$(gcloud auth application-default print-access-token)" --gcp-project "my-project" --gcs-bucket "my-bucket"'
+```
+
+Users of the shell can then simply run `gen` directly and implicitly use the those `gcp credentials`. As shown below.
+
+```bash
+gen -n "what is the weather like in London tomorrow?"
+```
 
 ### Removal
 
@@ -79,8 +117,8 @@ gen --new "What is the weather like in London tomorrow?" # stash the existing co
 # >> In London tomorrow it will be grey and wet... (response ommitted for brevity)
 
 gen --list # show current and active sessions, the asterix indicates the active session (-l can be used as a shortform)
->>   #1 (April 24 2025): 'how do i list all files in my current directory?'
->> * #2 (April 24 2025): 'what is the weather like in london tomorrow?'
+# >>   #1 (April 24 2025): 'how do i list all files in my current directory?'
+# >> * #2 (April 24 2025): 'what is the weather like in london tomorrow?'
 
 gen --restore 1 # switch the active session back to the earlier topic (-r can be used as a shortform)
 
@@ -215,11 +253,47 @@ Your last question was: "I need timestamps in the output".
 
 To delete a single session, run `gen --delete #id` (or `-d #id`) where `#id` is the `#ID` in the `gen --list` output. To delete all sessions, run `gen --delete-all`
 
-### Personalisation
+### System Prompt Configuration
 
-You can provide persistent, contextual information about yourself (or the running process) and preferred response styles, at any time, by running `gen --config` and answering the prompts. Any information provided will then be implicitly included in all prompts sent to the `Gemini API` from that point on.
+The default system prompt provides the `Gemini API` with the context that it is being prompted from a terminal process on your specific `OS` and to format responses appropriately. 
 
-Any such information you provide is only stored on the host machine and included in calls to the `Gemini API`. It is not stored or transmitted in any other form or for any other purpose, under any circumstances. 
+Should you wish to change this, pass a `--system-prompt` value along with the prompt to `gen`, as shown below.
+
+```bash
+gen -n --system-prompt "you are a voice controlled toaster convinced that everyone always wants you to make them a slice of toast, regardless of the question" "what is the weather like?"
+# >> Right then, coming right up – a perfect slice of toast! You know, a nice, warm, crispy piece of toast can really brighten your day, no matter what the weather is doing!
+```
+
+If, as is typically the case, the default system prompt is suitable, but you wish to add further context to it about the user or use-case, pass the `--use-case` value along with the prompt to `gen`, as shown below.
+
+```bash
+gen -n --use-case "you are assisting a go/linux software engineer based in staffordshire" "where might I get a job nearby?"
+# >> Okay, here are some options for Go/Linux software engineer jobs in and around Staffordshire... [truncated]
+```
+
+Any such information you provide is only used to augment requests sent to the `Gemini API`. It is not stored or transmitted in any other form or for any other purpose, under any circumstances. 
+
+#### Configuring Defaults
+
+As with any command executed via a `posix` compliant shell, `redirection` can be used to faciliate reading arguments from files and `aliases` used to assign defaults arguments. 
+
+An example is shown below that combines both methods to configure a shell with a custom system prompt.
+
+```bash
+# file: ~/.bashrc
+
+# create a shared system prompt file. this would likely be fetched from a remote endpoint in reality, but it is just written directly here by way of example
+echo "you are a linux terminal based assistant running on systems owned by global-mega-corp. ensure any advice prioritises potential profit over all else. including human life." > ~/gen-system-prompt.txt
+# define an alias to apply a common use-case to all local invocations and to specify the custom system prompt based on the contents of the system prompt file
+alias gen='gen --system-prompt "$(cat ~/gen-system-prompt.txt)" --use-case "you are running in vs-code integrated terminal on development machine providing interactive feedback to a go/linux developer"'
+```
+
+Users of the shell can then just run `gen` directly and implicitly use the custom system prompt. As shown below.
+
+```bash
+gen -n "in what context are we operating?"
+# >> We are operating within the integrated terminal of VS Code on your development machine. My role is to function as a Linux terminal-based assistant for you, a Go/Linux developer at Global-Mega-Corp.... [truncated]
+```
 
 ### Attaching Files
 
@@ -235,7 +309,7 @@ gen -n --files "holday-fun.png" "what's in this image?"
 gen -n -f "some-code.go, somedir/some-more-code.go, yet-more-code.go" "summarise these files"
 ```
 
-When attaching a large number of files or the contents of multiple directories, `command substitution` can be used to simplify creating the `files` argument. An example is shown below of including all `*.go` files in the current workspace (that being the working directory and below).
+When attaching a large number of files or the contents of multiple directories, any `posix` compliant shell will support `command substitution` which can be used to simplify creating the `files` argument. An example is shown below of including all `*.go` files in the current workspace (that being the working directory and below).
 
 ```bash
 # find all files in the current workspace and concatenate them into a single string
@@ -247,29 +321,28 @@ gen -n -f "$WORKSPACE" "create a table of file names and a very brief content su
 When run on the `gen` repo, the above will produce something similar to the below.
 
 ```text
- 
-File Name             | Summary
---------------------------|--------------------------------------------------
-session/session.go        | Manages chat sessions, including reading, writing, listing, stashing, restoring, and deleting sessions.
-session/session_test.go   | Contains unit tests for the session management functions.
-session/session_internal.go| Internal helper functions for session management, like getting directory paths and opening files.
-llm/llm_test.go           | Contains unit tests for the LLM interaction functions.
-llm/llm.go                | Handles interaction with the LLM API, including generating responses and managing file uploads.
-llm/internal/schema/schema.go| Defines the Go structs for the LLM API request and response schemas.
-resource/resource.go      | Handles uploading files to the LLM API.
-cli/spin.go               | Provides a simple terminal spinner function.
-cli/list.go               | Displays a list of chat sessions in the terminal.
-cli/configure.go          | Handles user configuration input via the terminal.
-schema/schema_test.go     | Contains unit tests for the schema building function.
-schema/schema.go          | Builds OpenAPI schema JSON from a simplified definition string.
-cfg/cfg_test.go           | Contains unit tests for the configuration reading and saving functions.
-cfg/cfg.go                | Handles reading and saving application configuration, including API key and user preferences.
-main.go                   | The main entry point for the CLI application, parses flags, handles commands, and orchestrates LLM interaction and session management.
+| File Name         | Brief Content Summary                                                                                                |
+|-------------------|----------------------------------------------------------------------------------------------------------------------|
+| `schema.go`       | Defines data structures for API requests (e.g., `Request`, `Content`, `Part`) and responses (e.g., `Response`, `Candidate`). |
+| `args.go`         | Defines and parses command-line arguments for the application using the `flag` package.                              |
+| `main.go`         | Main application entry point; handles argument parsing, API client setup, session management, and prompt generation.   |
+| `session_test.go` | Unit tests for session management functions (Write, Read, Stash, List, Restore, Delete).                             |
+| `resource.go`     | Utilities for file resource handling, including batch uploads and retrieving file information (MIME types).          |
+| `gla.go`          | Implements file upload functionality for Google's Generative Language API (GLA) using a resumable upload protocol.   |
+| `spinner.go`      | Provides a simple command-line spinner animation for indicating background tasks.                                    |
+| `file.go`         | Helper functions for managing session files and directories, including finding and opening active session files.       |
+| `gemini_test.go`  | Unit tests for the Gemini API client, mocking HTTP requests to verify request construction and response handling.    |
+| `list.go`         | Function to display a formatted list of current and saved user sessions.                                             |
+| `gcs.go`          | Implements file upload functionality for Google Cloud Storage (GCS).                                                 |
+| `schema.go` (2)   | Builds an OpenAPI JSON schema from a simplified string definition (e.g., "name:type:description\|...").              |
+| `session.go`      | Core session management logic: writing, reading, listing, stashing, restoring, and deleting user sessions.           |
+| `gemini.go`       | Client for interacting with the Gemini API; handles request construction, API calls, and response processing.        |
+| `schema_test.go`  | Unit tests for the schema building functionality defined in the second `schema.go` file.                             |
 ```
 
 ### Grounding
 
-Grounding is the term for verifying LLM responses with an external source, that source being `Google Search` in the case of `gen`. By default this feature is enabled, but it can be disabled with the `--no-grounding`flag, as shown below.
+Grounding is the term for verifying Gemini's responses with an external source, that source being `Google Search` in the case of `gen`. By default this feature is enabled, but it can be disabled with the `--no-grounding`flag, as shown below.
 
 ```bash
 gen -n --no-grounding "how do I list all files in my current directory?"
@@ -311,7 +384,7 @@ field-name:type # for example, 'result:integer'
 A more complex definition showing multiple fields, each with descriptions, is structured as follows.
 
 ```bash
-field-name1:type1:description1|field-name2:type2:description2,...n # for example, 'result:integer:the result of the review|reason:string:the justification of the result of the review'
+field-name1:type1:description1|field-name2:type2:description2|...n # for example, 'result:integer:the result of the review|reason:string:the justification of the result of the review'
 ```
 
 Providing a description can be useful for both the LLM and the user in understanding the purpose of the field. It can also reduce the amount of guidance needed in the main prompt itself to ensure response content is correctly assigned.
