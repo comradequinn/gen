@@ -1,23 +1,29 @@
 # gen
 
-Named `gen` (from `generate`), `gen` is a command-line `llm` interface built on Google's `Gemini` models. 
+Named `gen` (from `generate`), `gen` is an agentic, command-line `llm` interface built on Google's `Gemini` models. 
 
 Using `gen` greatly simplifies integrating LLM capabilities into CI pipelines, scripts or other automation. 
 
-For terminal users, `gen` acts as a simple but fully-featured interactive assistant.
+For terminal users, `gen` acts as a fully-featured conversational, agentic assistant.
 
 ## Features
 
 Using `gen` provides the following features:
 
-* Interactive command-line chatbot
+* Agentic, conversational, command-line chatbot
   * Non-blocking, yet conversational, prompting allowing natural, fluid usage within the terminal environment
     * The avoidance of a dedicated `repl` to define a session leaves the terminal free to execute other commands between prompts while still maintaining the conversational context
+  * Agentic features with `exec` mode
+    * Ask `gen` to `do` a task for you rather than explain how
+      * Query file contents, git repos and remote APIs
+      * Analyse data and write the results to new or existing files
+      * Install programs, download files and scrape websites
+      * Perform complex multi-stage tasks with a single prompt
   * Session management enables easy stashing of, or switching to, the currently active, or a previously stashed session
     * This makes it simple to quickly task switch without permanently losing the current conversational context
 * Fully scriptable and ideal for use in automation and CI pipelines
-  * All configuration and session history is file or flag based
-  * API Keys are provided via environment variables
+  * All configuration and session history flag or file based
+  * API Keys are provided via environment variables or flags
   * Support for structured responses using custom `schemas`
     * Basic schemas can be defined using a simple schema definition language
     * Complex schemas can be defined using OpenAPI Schema objects expressed as JSON (either inline or in dedicated files)
@@ -37,7 +43,7 @@ To install `gen`, download the appropriate tarball for your `os` from the [relea
 Optionally, you can use the below script to do that for you
 
 ```bash
-export VERSION="v1.2.0"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
+export VERSION="v1.0.0"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
 ```
 
 ### Authentication
@@ -110,34 +116,50 @@ The following example shows the fundamentals of interactive, conversational usag
 gen "how do I list all files in my current directory?" # ask a question
 # >> to list all files in the current directory run the... (response ommitted for brevity)
 
-gen "I want timestamps in the output" # ask a follow up question relying on the previous question for context
+gen "include timestamps in the output" # ask a follow up question relying on the previous question for context
 # >> to include timestamps in the directory listing output... (response ommitted for brevity)
 
-gen --new "What is the weather like in London tomorrow?" # stash the existing conversational context and start a new session (-n can be used as a shortform)
+gen --new "what is the weather like in london tomorrow?" # stash the existing conversational context and start a new session (-n can be used as a shortform of --new)
 # >> In London tomorrow it will be grey and wet... (response ommitted for brevity)
 
-gen --list # show current and active sessions, the asterix indicates the active session (-l can be used as a shortform)
+gen --list # show current and active sessions, the asterix indicates the active session (-l can be used as a shortform of --list)
 # >>   #1 (April 24 2025): 'how do i list all files in my current directory?'
 # >> * #2 (April 24 2025): 'what is the weather like in london tomorrow?'
 
 gen --restore 1 # switch the active session back to the earlier topic (-r can be used as a shortform)
 
-gen "I want file permissions in the output" # ask a follow up question relying on context from the restored session
+gen "include file permissions in the output" # ask a follow up question relying on context from the restored session
 # >> to include file permissions in the directory listing output... (response ommitted for brevity)
 
-gen --new --files ./main.go "Summarise this code for me" # attach a file to the prompt and ask a question related to its contents (-f can be used as a shortform)
+gen --new --files ./main.go "summarise this code for me" # attach a file to the prompt and ask a question related to its contents (-f can be used as a shortform for --files)
 # >> This file contains badly organised and incomprehensible code, even to an LLM... (response ommitted for brevity)
+
+gen --new --exec "list all .go files in my current directory" # directly execute and interpret terminal commands to perform tasks (-x can be used as a shortform for --exec)
+# >> Executing `ls *.go` to list all .go files in the current directory...
+# >> main.go
+
+gen --exec "copy the files to a directory named 'backup'" # execute a follow up task using the previous task for context, this time containing multiple steps
+# >> Executing `mkdir -p backup` to create the 'backup' directory if it doesn't already exist...
+# >> Okay, I've created the 'backup' directory. Now, copying all .go files to the 'backup' directory...
+# >> Executing `cp *.go backup/` to copy all .go files to the 'backup' directory...
+# >> OK
+
+gen --new --exec "write the contents returned from github's home page to a file named github.html" # access and parse external resources 
+# >> Executing `curl https://github.com -o github.html` to write the contents of GitHub's home page to a file named github.html...
+# >> OK
 ```
 
 ### Scripting
 
-The following example describes how to use `gen` to perform a basic, automated code review of a given file.
+#### Structured Responses
+
+The following example describes how to use `gen` to perform a basic code review of a given file and return the result in a specific, consistent `json` format.
 
 For clarity, note that the below command...
 
 ```bash
-# start a new gen session in script mode (supresses output, -s can also be used). include the main.go file in the prompt and specify a schema for the response
-gen --new --script --files ./main.go --schema='quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file"
+# start a new gen session in --script mode (supresses output, -q can also be used). include the --files (main.go, -f can also be used) in the prompt and specify a --schema for the response (-s can also be used)
+gen --new --script --files ./main.go --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file"
 ```
 
 ... will result in the following...
@@ -153,7 +175,7 @@ Given this understanding, the script below demonstrates how this data can be use
 
 ```bash
 # perform the 'code review' and store the JSON response in a variable
-JSON=$(gen -n -s -f ./main.go --schema='quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file")
+JSON=$(gen -n -q -f ./main.go --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file")
 # parse the JSON into an array containing either the 'suggested improvements' or 'ok' and the associated exit code based on whether it was an 'ok' result or it required revising
 # - eg '[ 'ok', 0 ] or '[ 'horrific stuff, unreadable...', 1 ]
 RESULT=$(echo "$JSON" | jq -r 'if .quality > 2 then [.reason, 1] else ["ok", 0] end')
@@ -162,6 +184,41 @@ echo "$RESULT" | jq -r '.[0]'
 # exit with a return code derived from whether the minimum required quality was met
 exit "$(echo "$RESULT" | jq -r '.[1]')" 
 ```
+
+#### Agentic Actions
+
+The following example describes how to use `gen` to perform a agentic tasks in a script, in this case another variant on the automated code review of a given file.
+
+```bash
+gen --new --exec --script "perform a code review on the main.go file. 
+write a single integer quality result value to a new file named 'result.txt', 
+with 1 being 'excellent' and 5, 'terrible'. 
+if the result is not 1, write a justifification as to what needs improving
+to a new file named 'feedback.txt'. finally, if the result was not 1, issue a 
+command to terminate the process with a return code of of 2"
+
+case $? in
+    0)
+        # take whatever action is required for a completed code review with a positive outcome...
+        echo "code review completed. code is a masterpiece" 
+        ;;
+    1)
+        # take whatever action is required for code review that could not be completed due to an error executing the commands...
+        echo "an error prevented the code review being undertaken" 
+        ;;
+    2)
+        # take whatever action is required for a completed code review with a negative outcome...
+        echo "code review completed. code is awful; an afront to the intellectual diginity of man and beast" 
+        ;;
+    *)
+        # default error case for any other exit codes
+        echo "an unknown error occurred. exit code: $?"
+        ;;
+esac
+# >> code review completed. code is a masterpiece
+```
+
+When executed, the above will cause `gen` to silently perform all the tasks and the subsequent part of the script will then print an appropriate response based on `gen's` return code. In the prompt used, the `exit code` to indicate code review failure was set as `2`; this is optional and purely to allow the two causes of failure to be distinguished in the script.
 
 ## Usage
 
@@ -219,6 +276,42 @@ This will return something similar to the below, indicating the loss of the prev
 I have no memory of past conversations. Therefore, I don't know what your last question was.
 ```
 
+### Agentic Actions
+
+To run `gen` in `exec` mode, pass the `--exec` (or `-x`) flag. 
+
+When running in `exec` mode, `gen` behaves `agentically`. It is able to execute commands as your user in order to perform tasks on your behalf. These tasks can effectively be anything that you could undertake yourself and can also contain multiple steps. The exception to this is long running programs. Asking `gen` to capture all tcp traffic to a host will work, but if you do not also specify some form of exit condition, the command will run indefinitely and the result will never be collected and forwarded to `gemini` in order for it to respond; `gen` will just appear to hang.
+
+The `--exec` flag is scoped to each invidual prompt, so agentic capabilities can be variably enabled or disabled on individual prompts within with the same conversation. 
+
+For security purposes, it is impossible for `gen` to execute commands without the `--exec` (or `-x`) flag, and conversely, take extra caution with your prompts when `exec` mode is enabled. If you would prefer to approve each command that `gen` requests before it is executed, pass the `--approve` (or `-k`) flag along with `--exec`.
+
+An example is shown below of using agentic mode in a conversation.
+
+```bash
+# ask for support with a task, as --exec is not specified, 
+gen -n "how would I list all files in my home directory, including hidden ones, that were modified in the last day?"
+# >> You can list all files in your home directory, including hidden ones, that were modified in the last day (24 hours) using the `find` command:
+# >>    find ~ -maxdepth 1 -type f -mtime -1
+
+# switch to exec mode by passing --exec flag for the next prompt and use the previous context to infer the action gen is take
+gen --exec "ok, execute that for me and print the results"
+# >> Executing `find ~ -maxdepth 1 -type f -mtime -1 -ls` to list all files (including hidden) in your home directory modified in the last 24 hours...
+# >> 
+# >> 40344544     56 -rw-------   1 me     me        54416 Jun 12 00:08 /home/me/.bash_history
+# >> 40343278      4 -rw-rw-r--   1 me     me          281 Jun 12 20:15 /home/me/.gitconfig
+# >> 40344559     12 -rw-------   1 me     me        10435 Jun 12 00:07 /home/me/.viminfo
+```
+As well as relatively specific tasks, such as those above, you can also give general instructions to `gen`, and have it figure the steps it needs to take and execute them. As illustrated below.
+
+```bash
+gen -n -x "what kind of license is associated with this repo? can I use it in commercial software?"
+# >> I need to inspect the repository's files to find a license. Executing `ls -a` to list all files, including hidden ones, in the current directory...
+# >> This repository is licensed under the GNU General Public License v3.0.
+# >> Key aspects of this license regarding commercial use are:
+# >> - [truncated for brevity]
+# >> In summary: Yes, you can use it in commercial software, but [truncated for brevity]
+```
 ### Session Management
 
 A session is a thread of prompts and responses with the same context, effectively a conversation. A new session starts whenever `--new` (or `-n`) is passed along with the prompt to `gen`. At this point, the previously active session is `stashed` and the passed prompt becomes the start of a new session.
@@ -268,7 +361,7 @@ If, as is typically the case, the default system prompt is suitable, but you wis
 
 ```bash
 gen -n --use-case "you are assisting a go/linux software engineer based in staffordshire" "where might I get a job nearby?"
-# >> Okay, here are some options for Go/Linux software engineer jobs in and around Staffordshire... [truncated]
+# >> Okay, here are some options for Go/Linux software engineer jobs in and around Staffordshire... [truncated for brevity]
 ```
 
 Any such information you provide is only used to augment requests sent to the `Gemini API`. It is not stored or transmitted in any other form or for any other purpose, under any circumstances. 
@@ -292,7 +385,7 @@ Users of the shell can then just run `gen` directly and implicitly use the custo
 
 ```bash
 gen -n "in what context are we operating?"
-# >> We are operating within the integrated terminal of VS Code on your development machine. My role is to function as a Linux terminal-based assistant for you, a Go/Linux developer at Global-Mega-Corp.... [truncated]
+# >> We are operating within the integrated terminal of VS Code on your development machine. My role is to function as a Linux terminal-based assistant for you, a Go/Linux developer at Global-Mega-Corp.... [truncated for brevity]
 ```
 
 ### Attaching Files
@@ -321,23 +414,31 @@ gen -n -f "$WORKSPACE" "create a table of file names and a very brief content su
 When run on the `gen` repo, the above will produce something similar to the below.
 
 ```text
-| File Name         | Brief Content Summary                                                                                                |
-|-------------------|----------------------------------------------------------------------------------------------------------------------|
-| `schema.go`       | Defines data structures for API requests (e.g., `Request`, `Content`, `Part`) and responses (e.g., `Response`, `Candidate`). |
-| `args.go`         | Defines and parses command-line arguments for the application using the `flag` package.                              |
-| `main.go`         | Main application entry point; handles argument parsing, API client setup, session management, and prompt generation.   |
-| `session_test.go` | Unit tests for session management functions (Write, Read, Stash, List, Restore, Delete).                             |
-| `resource.go`     | Utilities for file resource handling, including batch uploads and retrieving file information (MIME types).          |
-| `gla.go`          | Implements file upload functionality for Google's Generative Language API (GLA) using a resumable upload protocol.   |
-| `spinner.go`      | Provides a simple command-line spinner animation for indicating background tasks.                                    |
-| `file.go`         | Helper functions for managing session files and directories, including finding and opening active session files.       |
-| `gemini_test.go`  | Unit tests for the Gemini API client, mocking HTTP requests to verify request construction and response handling.    |
-| `list.go`         | Function to display a formatted list of current and saved user sessions.                                             |
-| `gcs.go`          | Implements file upload functionality for Google Cloud Storage (GCS).                                                 |
-| `schema.go` (2)   | Builds an OpenAPI JSON schema from a simplified string definition (e.g., "name:type:description\|...").              |
-| `session.go`      | Core session management logic: writing, reading, listing, stashing, restoring, and deleting user sessions.           |
-| `gemini.go`       | Client for interacting with the Gemini API; handles request construction, API calls, and response processing.        |
-| `schema_test.go`  | Unit tests for the schema building functionality defined in the second `schema.go` file.                             |
+| File | Summary |
+| --- | --- |
+| `main.go` | The main entry point for the `gen` command-line application. It handles argument parsing, command dispatching, and initialization. |
+| `cli/args.go` | Defines and parses all command-line flags and arguments for the application using Go's `flag` package. |
+| `cli/execute.go` | Contains the logic to execute shell commands requested by the Gemini model, including handling user approval for security. |
+| `cli/generate.go` | Orchestrates the core 'generate' functionality, managing the prompt-response loop, session history, and function/tool execution. |
+| `cli/io.go` | Provides utility functions for command-line I/O, such as writing formatted output and displaying a loading spinner. |
+| `cli/list.go` | Implements the functionality to display a formatted list of saved and active user sessions. |
+| `gemini/gemini.go` | The primary file for the `gemini` package, containing the `Generate` function that constructs and sends requests to the Gemini API. |
+| `gemini/config.go` | Defines the `Config` struct for holding all configuration parameters for the Gemini client and sets default values. |
+| `gemini/config_test.go` | Contains unit tests for the configuration logic, ensuring that default values and constraints are applied correctly. |
+| `gemini/history.go` | Manages the construction of conversation history to be sent with each new prompt, converting past transactions into the required format. |
+| `gemini/http.go` | Handles the low-level HTTP request and response interaction with the Gemini API endpoint. |
+| `gemini/tools.go` | Defines the tools available to the model, such as command execution and file requests, and their corresponding JSON schema for the API. |
+| `gemini/types.go` | Defines the core data structures for the application, such as `Prompt`, `Transaction`, `Input`, and `Output`. |
+| `gemini_test.go` | Contains unit tests for the main `gemini.Generate` function, using mock servers to simulate API interactions. |
+| `gemini/internal/resource/resource.go` | Provides a generic interface and utilities for file handling, including concurrent batch uploads and MIME type detection. |
+| `gemini/internal/resource/gcs/gcs.go` | Implements file uploads specifically for Google Cloud Storage (GCS), for use with Vertex AI. |
+| `gemini/internal/resource/gla/gla.go` | Implements the resumable upload protocol for Google's Generative Language API (GLA) file service. |
+| `gemini/internal/schema/schema.go` | Contains logic to build a JSON OpenAPI schema from a simplified string definition provided by the user. |
+| `gemini/internal/schema/schema_test.go`| Unit tests for the schema-building logic, verifying correct JSON output for various valid and invalid definitions. |
+| `gemini/internal/schema/types.go` | Defines the Go structs that map to the JSON request and response schemas of the Gemini API. |
+| `log/log.go` | A simple logging utility that wraps the standard `slog` package for application-wide logging. |
+| `session/session.go` | Manages session state, including reading, writing, stashing, restoring, and deleting conversation history from the file system. |
+| `session/session_test.go` | Contains unit tests for the session management functionality, ensuring that session state can be manipulated correctly. |
 ```
 
 ### Grounding
@@ -350,7 +451,7 @@ gen -n --no-grounding "how do I list all files in my current directory?"
 
 ### Scripting
 
-When using the output of `gen` in a script, it is advisable to supress activity indicators and other interactive output using the `--script` flag (or `-s`). This ensures a consistent output stream containing only response data.
+When using the output of `gen` in a script, it is advisable to supress activity indicators and other interactive output using the `--script` flag (or `-q`). This ensures a consistent output stream containing only response data.
 
 The simple example below uses redirection to write the response to a file.
 
@@ -364,9 +465,23 @@ This will result in a file similar to the below
 Blue
 ```
 
+#### Agentic Actions in Scripts
+
+Using `exec` mode in scripts is largely the same as using it conversationally. The key difference is that there is no user interaction. So `gen` cannot seek instruction on how to proceed after an error. Similarly when commands executed by `gen` fail, a script would typically expect `gen` to terminate and pass that exit code back to it; which is indeed how it behaves.
+
+You can also instruct `gen` to exit with a specific return codes in your prompt too, an example is shown below.
+
+```bash
+gen -n --script -exec "ascertain the day of the week and then terminate the process with exit code 1 if it monday, 2 if is tuesday, or 3 otherwise"
+##> OK
+
+echo "$?"
+# 3 (assuming it is not monday or tuesday)
+```
+
 ### Structured Responses
 
-By default, `gen` will request responses structured as free-form text, which is a sensible format for conversational use. However, in many scenarios, particularly CI and scripting use-cases, it is preferable to have the output in a structured form. To this end, `gen` allows you to specify a `schema` that will be used to format the response.
+By default, `gen` will request responses structured as free-form text, which is a sensible format for conversational use. However, in many scenarios, particularly CI and scripting use-cases, it is preferable to have the output in a structured form. To this end, `gen` allows you to specify a schema, using `--schema` (or `-s`), that will be used to structure the response.
 
 There are two methods of specifying a schema, either by using `GSL` (`gen`'s `s`chema `l`anguage) or by providing a JSON based `OpenAPI schema object`. 
 
@@ -398,7 +513,7 @@ To have the pattern be interpreted as a template for the elements of an array, r
 A simple example of executing `gen` with a `GSL` defined schema is shown below.
 
 ```bash
-gen -n --script --schema='[]colour:string' "list all colours of the rainbow"
+gen -n --script --schema '[]colour:string' "list all colours of the rainbow"
 ```
 
 This will return a response similar to the following.
@@ -420,7 +535,7 @@ This will return a response similar to the following.
 For more complex schemas, the definition can be provided as an [OpenAPI Schema Object](https://spec.openapis.org/oas/v3.0.3#schema-object-examples). A simple example is shown below.
 
 ```bash
-gen -n --script --schema='{"type":"object","properties":{"colour":{"type":"string", "description":"the selected colour"}}}' "pick a colour of the rainbow"
+gen -n --script --schema '{"type":"object","properties":{"colour":{"type":"string", "description":"the selected colour"}}}' "pick a colour of the rainbow"
 ```
 
 This will return a response similar to the following.
@@ -434,7 +549,7 @@ This will return a response similar to the following.
 It may be preferable to store complex `schemas` in a file rather than declaring them inline. Standard `command substitution` techniques can be used to enable this. The example below shows how the same `schema` as defined inline above can instead be read from the file `./schema.json`.
 
 ```bash
-gen -n --schema="$(cat ./schema.json)" "pick a colour of the rainbow"
+gen -n --schema "$(cat ./schema.json)" "pick a colour of the rainbow"
 ```
 
 ## Model Configuration 
@@ -447,7 +562,7 @@ gen --model 'custom-gemini-exp-model-123' --temperature 0.1 --top-p 0.1 --max-to
 
 The effect of the above will be to make the responses more deterministic and favour correctness over 'imagination'. 
 
-While the effects of `top-p` and `temperature` are out of the scope of this document, briefly and simplistically; when the LLM is selecting the next token to include in its response, the value of `top-p` restricts the pool of potential next tokens that can be selected to the most probable subset. This is derived by selecting the most probable, one by one, until the cumulative probability of  that selection exceeds the value of `p`. The `temperature` value is then used to weight the probabilities in that resulting subset to either level them out or emphasise their differences; making it less or more likely that the highest probability candidate will be chosen.
+While the effects of `top-p` and `temperature` are out of the scope of this document, briefly and simplistically; when the LLM is selecting the next token to include in its response, the value of `top-p` restricts the pool of potential next tokens that can be selected to the most probable subset. This is derived by selecting the most probable, one by one, until the cumulative probability of that selection exceeds the value of `p`. The `temperature` value is then used to weight the probabilities in that resulting subset to either level them out or emphasise their differences; making it less or more likely that the highest probability candidate will be chosen.
 
 ## Reporting on Usage
 
@@ -486,7 +601,7 @@ And the contents of `stats.txt` will be similar to the following.
 
 ## Debugging
 
-To inspect the underlying Gemini API traffic that is generated by `gen`, run it with the `--debug` flag. Other arguments can be passed normal. With the `--debug` flag specified, the `Gemini API` request and response payloads and other relevant data will be written to `stderr`. This output is in the form of JSON encoded structured logs. As the primary responses are written to `stdout` the debug component can easily be separated from the main content, for independent analysis, using standard `redirection` techniques.
+To inspect the underlying Gemini API traffic that is generated by `gen`, run it with the `--verbose` (or `-v`) flag. Other arguments can be passed normal. With the `--verbose` flag specified, the `Gemini API` request and response payloads and other relevant data will be written to `stderr`. This output is in the form of JSON encoded structured logs. As the primary responses are written to `stdout` the debug component can easily be separated from the main content, for independent analysis, using standard `redirection` techniques.
 
 
 

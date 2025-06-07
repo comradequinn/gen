@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/comradequinn/gen/log"
 )
 
 type (
@@ -26,7 +28,7 @@ type (
 		MIMEType string
 		Label    string
 	}
-	UploadFunc func(uploadRequest UploadRequest, debugPrintf func(msg string, args ...any)) (Reference, error)
+	UploadFunc func(uploadRequest UploadRequest) (Reference, error)
 )
 
 var (
@@ -52,7 +54,7 @@ var (
 	}
 )
 
-func Upload(batchUploadRequest BatchUploadRequest, debugPrintf func(msg string, args ...any)) ([]Reference, error) {
+func Upload(batchUploadRequest BatchUploadRequest) ([]Reference, error) {
 	type response struct {
 		resourceRef Reference
 		err         error
@@ -73,11 +75,11 @@ func Upload(batchUploadRequest BatchUploadRequest, debugPrintf func(msg string, 
 				}
 			}()
 
-			debugPrintf("started file upload worker", "type", "batch_upload_request", "file", f)
+			log.DebugPrintf("started file upload worker", "type", "batch_upload_request", "file", f)
 
 			select {
 			case <-ctx.Done():
-				debugPrintf("file upload context cancelled", "type", "batch_upload_request", "file", f)
+				log.DebugPrintf("file upload context cancelled", "type", "batch_upload_request", "file", f)
 				return
 			default:
 			}
@@ -86,7 +88,7 @@ func Upload(batchUploadRequest BatchUploadRequest, debugPrintf func(msg string, 
 				URL:        batchUploadRequest.URL,
 				Credential: batchUploadRequest.Credential,
 				File:       f,
-			}, debugPrintf)
+			})
 
 			if err != nil {
 				responses <- response{err: fmt.Errorf("unable to upload file '%v' via file storage api. %v", f, err)}
@@ -94,7 +96,7 @@ func Upload(batchUploadRequest BatchUploadRequest, debugPrintf func(msg string, 
 			}
 
 			responses <- response{resourceRef: resourceRef}
-			debugPrintf("stopped file upload worker", "type", "batch_upload_request", "file", f)
+			log.DebugPrintf("stopped file upload worker", "type", "batch_upload_request", "file", f)
 		}(f)
 	}
 
@@ -108,17 +110,17 @@ func Upload(batchUploadRequest BatchUploadRequest, debugPrintf func(msg string, 
 	go func() {
 		defer func() { responseWorkerDone <- struct{}{} }()
 
-		debugPrintf("started file upload response processing worker", "type", "batch_upload_response")
+		log.DebugPrintf("started file upload response processing worker", "type", "batch_upload_response")
 
 		for response := range responses {
-			debugPrintf("processing file upload response", "type", "batch_upload_response", "file", response.resourceRef.Label, "err", response.err)
+			log.DebugPrintf("processing file upload response", "type", "batch_upload_response", "file", response.resourceRef.Label, "err", response.err)
 
 			if err != nil { // once an error has occurred just drain the channel
 				continue
 			}
 
 			if response.err != nil { // an error occurred...
-				debugPrintf("file upload response error. terminating workers", "type", "batch_upload_response", "err", response.err)
+				log.DebugPrintf("file upload response error. terminating workers", "type", "batch_upload_response", "err", response.err)
 				err = response.err // ... and capture the error
 				ctxCancelFunc()    // ... cancel any outstanding uploads ...
 				continue
@@ -127,7 +129,7 @@ func Upload(batchUploadRequest BatchUploadRequest, debugPrintf func(msg string, 
 			resourceRefs = append(resourceRefs, response.resourceRef)
 		}
 
-		debugPrintf("stopped file upload response processing worker", "type", "batch_upload_response")
+		log.DebugPrintf("stopped file upload response processing worker", "type", "batch_upload_response")
 	}()
 
 	uploadWorkers.Wait() // wait until all files have been uploaded

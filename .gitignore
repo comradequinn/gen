@@ -28,7 +28,7 @@ scratch.http
 
 bin
 
-temp.txt
+temp.*
 
 *.log
 

@@ -1,55 +1,17 @@
+// Package gemini defines an interface to the Gemini API
 package gemini
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
 	"github.com/comradequinn/gen/gemini/internal/resource"
 	"github.com/comradequinn/gen/gemini/internal/resource/gcs"
 	"github.com/comradequinn/gen/gemini/internal/resource/gla"
 	"github.com/comradequinn/gen/gemini/internal/schema"
-)
-
-type (
-	Config struct {
-		GeminiURL      string
-		Credential     string
-		Platform       Platform
-		FileStorageURL string
-		SystemPrompt   string
-		MaxTokens      int
-		Temperature    float64
-		TopP           float64
-		UseCase        string
-		Grounding      bool
-	}
-	Prompt struct {
-		History []Message
-		Text    string
-		Files   []string
-		Schema  string
-	}
-	FileReference struct {
-		URI      string `json:"uri"`
-		MIMEType string `json:"mimeType"`
-		Label    string `json:"label"`
-	}
-	Response struct {
-		Tokens int
-		Text   string
-		Files  []FileReference
-	}
-	Role    string
-	Message struct {
-		Role  Role            `json:"role"`
-		Text  string          `json:"text"`
-		Files []FileReference `json:"files,omitempty"`
-	}
-	Platform int
+	"github.com/comradequinn/gen/log"
 )
 
 const (
@@ -62,68 +24,59 @@ var (
 		Pro   string
 		Flash string
 	}{
-		Pro:   "gemini-2.5-pro-preview-05-06",
-		Flash: "gemini-2.5-flash-preview-04-17",
+		Pro:   "gemini-2.5-pro-preview-06-05",
+		Flash: "gemini-2.5-flash-preview-05-20",
 	}
+)
+
+const (
+	InputTypeUser    = "user"
+	InputTypeCommand = "command"
 )
 
 const (
 	RoleUser  = "user"
 	RoleModel = "model"
+	RoleTool  = "tool"
 )
 
 // Generate queries the Gemini API with the specified prompt and returns the result
-func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...any)) (Response, error) {
-	if cfg.MaxTokens == 0 || cfg.Temperature == 0 {
-		return Response{}, fmt.Errorf("invalid prompt. maxtokens and temperature must be specified")
+func Generate(cfg Config, prompt Prompt) (Transaction, error) {
+	var err error
+
+	if cfg, err = cfg.withDefaults(prompt); err != nil {
+		return Transaction{}, fmt.Errorf("invalid configuration. %w", err)
 	}
 
-	if prompt.Schema != "" && cfg.Grounding {
-		debugPrintf("grounding was specified but silently disabled due to the specification of a schema. the gemini api will not currently perform grounding for prompts requiring a structured response")
-		cfg.Grounding = false
-	}
-
-	systemPrompt := strings.Builder{}
-	systemPrompt.WriteString(cfg.SystemPrompt + ". ")
-	systemPrompt.WriteString(fmt.Sprintf("Your responses must not exceed %v words in length. ", float64(cfg.MaxTokens)*0.75)) // rough mapping of tokens to words
-
-	if cfg.UseCase != "" {
-		systemPrompt.WriteString("Consider in your responses, where it may be relevant, that the following information has been provided about your specific use-case: [" + cfg.UseCase + "]")
-	}
-
-	contents := make([]schema.Content, 0, len(prompt.History)+1)
-
-	for _, message := range prompt.History {
-		content := schema.Content{
-			Role:  string(message.Role),
-			Parts: []schema.Part{{Text: message.Text}}}
-		if len(message.Files) > 0 {
-			for _, fileReference := range message.Files {
-				content.Parts = append(content.Parts, schema.Part{
-					File: &schema.FileData{URI: fileReference.URI, MIMEType: fileReference.MIMEType},
-				})
-			}
-		}
-
-		contents = append(contents, content)
-	}
-
-	content := schema.Content{
-		Role: RoleUser,
-		Parts: []schema.Part{
-			{Text: prompt.Text},
-		},
-	}
+	contents := historyFrom(prompt)
 
 	var (
+		part                schema.Part
 		resourceRefs        []resource.Reference
 		resourceUploadFunc  resource.UploadFunc
 		url                 string
 		authorisationHeader string
-		err                 error
+		role                string
 	)
 
-	switch cfg.Platform {
+	switch {
+	case prompt.InputType == InputTypeUser:
+		part = schema.Part{Text: prompt.Text}
+		role = RoleUser
+	case prompt.CommandResult.Executed:
+		part = schema.Part{FunctionResponse: prompt.CommandResult.marshalJSON()}
+		role = RoleUser
+	case prompt.FilesRequestResult.Attached:
+		part = schema.Part{FunctionResponse: prompt.FilesRequestResult.marshalJSON()}
+		role = RoleUser
+	}
+
+	content := schema.Content{
+		Role:  role,
+		Parts: []schema.Part{part},
+	}
+
+	switch cfg.platform() {
 	case PlatformGenerativeLanguage:
 		resourceUploadFunc = gla.Upload
 		url = strings.ReplaceAll(cfg.GeminiURL, "{api-key}", cfg.Credential)
@@ -132,7 +85,7 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 		url = cfg.GeminiURL
 		authorisationHeader = "Bearer " + cfg.Credential
 	default:
-		panic(fmt.Sprintf("unsupported api platform %v", cfg.Platform))
+		panic(fmt.Sprintf("unsupported api platform %v", cfg.platform()))
 	}
 
 	if len(prompt.Files) > 0 {
@@ -141,8 +94,8 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 			Credential: cfg.Credential,
 			UploadFunc: resourceUploadFunc,
 			Files:      prompt.Files,
-		}, debugPrintf); err != nil {
-			return Response{}, err
+		}); err != nil {
+			return Transaction{}, err
 		}
 
 		for _, ref := range resourceRefs {
@@ -152,97 +105,85 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 
 	contents = append(contents, content)
 
-	tools := []schema.Tool{}
+	tools := []json.RawMessage{}
 
 	if cfg.Grounding {
-		tools = []schema.Tool{
-			{GoogleSearch: &schema.GoogleSearch{}},
-		}
+		tools = append(tools, googleSearchTool{}.marshalJSON())
+	}
+
+	if cfg.CommandExecution {
+		tools = append(tools, commandExecutionTool{}.marshalJSON())
 	}
 
 	generationConfig := schema.GenerationConfig{
-		Temperature:     cfg.Temperature,
-		TopP:            cfg.TopP,
-		MaxOutputTokens: cfg.MaxTokens,
+		Temperature:      cfg.Temperature,
+		TopP:             cfg.TopP,
+		MaxOutputTokens:  cfg.MaxTokens,
+		ResponseMimeType: "text/plain",
 	}
-
-	generationConfig.ResponseMimeType = "text/plain"
 
 	if prompt.Schema != "" {
 		generationConfig.ResponseMimeType = "application/json"
 		generationConfig.ResponseSchema = json.RawMessage(prompt.Schema)
 	}
 
-	request := bytes.Buffer{}
-	if err := json.NewEncoder(&request).Encode(schema.Request{
-		SystemInstruction: schema.SystemInstruction{
-			Parts: []schema.Part{{Text: systemPrompt.String()}},
-		},
-		Contents:         contents,
-		Tools:            tools,
-		GenerationConfig: generationConfig,
-	}); err != nil {
-		return Response{}, fmt.Errorf("unable to encode gemini request as json. %w", err)
-	}
-
-	rq, _ := http.NewRequest(http.MethodPost, url, &request)
-
-	rq.Header.Set("Content-Type", "application/json")
-	rq.Header.Set("Authorization", authorisationHeader)
-
-	debugPrintf("sending generate request", "type", "generate_request", "url", url, "headers", rq.Header, "body", request.String())
-
-	rs, err := http.DefaultClient.Do(rq)
+	response, err := geminiHTTP(url, authorisationHeader, cfg, contents, tools, generationConfig)
 
 	if err != nil {
-		return Response{}, fmt.Errorf("unable to send request to gemini api. %w", err)
+		return Transaction{}, err
 	}
 
-	defer rs.Body.Close()
-
-	body, err := io.ReadAll(rs.Body)
-
-	if err != nil {
-		return Response{}, fmt.Errorf("unable to read response body. %w", err)
-	}
-
-	debugPrintf("received generate response", "type", "generate_response", "status", rs.Status, "request", string(body))
-
-	if rs.StatusCode != 200 {
-		return Response{}, fmt.Errorf("non-200 status code returned from gemini api. %s", body)
-	}
-
-	response := schema.Response{}
-
-	if err := json.Unmarshal(body, &response); err != nil {
-		return Response{}, fmt.Errorf("unable to parse response body. %w", err)
-	}
-
-	if len(response.Candidates) == 0 || response.Candidates[0].FinishReason != schema.FinishReasonStop {
-		return Response{}, fmt.Errorf("no valid response candidates returned. response: %s", body)
-	}
-
-	sb := strings.Builder{}
+	responseText, commandRequest, filesRequest := strings.Builder{}, CommandRequest{}, FilesRequest{}
 
 	for _, part := range response.Candidates[0].Content.Parts {
-		sb.WriteString(part.Text)
+		if part.FunctionCall.Name != "" {
+			switch {
+			case part.FunctionCall.Name == (commandExecutionTool{}).ExecCmdFunctionName():
+				if err := json.NewDecoder(bytes.NewReader(part.FunctionCall.Args)).Decode(&commandRequest); err != nil {
+					return Transaction{}, fmt.Errorf("unable to decode function call arguments for '%v' returned from gemini api. %w", part.FunctionCall.Name, err)
+				}
+			case part.FunctionCall.Name == (commandExecutionTool{}).RequestFilesFunctionName():
+				if err := json.NewDecoder(bytes.NewReader(part.FunctionCall.Args)).Decode(&filesRequest); err != nil {
+					return Transaction{}, fmt.Errorf("unable to decode function call arguments for '%v' returned from gemini api. %w", part.FunctionCall.Name, err)
+				}
+			default:
+				return Transaction{}, fmt.Errorf("unexpected function call response returned from gemini api. zero or one function of types '%v' or '%v' expected. got %+v", (commandExecutionTool{}).ExecCmdFunctionName(), (commandExecutionTool{}).RequestFilesFunctionName(), part.FunctionCall)
+			}
+		}
+
+		responseText.WriteString(part.Text)
 	}
 
-	debugPrintf("token count value reported", "type", "report", "token_count", response.UsageMetadata.TotalTokenCount)
+	log.DebugPrintf("token count value reported", "type", "report", "token_count", response.UsageMetadata.TotalTokenCount)
 
-	files := make([]FileReference, 0, len(resourceRefs))
+	filesReferences := make([]FileReference, 0, len(resourceRefs))
 
 	for _, resourceRef := range resourceRefs {
-		files = append(files, FileReference{
+		filesReferences = append(filesReferences, FileReference{
 			URI:      resourceRef.URI,
 			MIMEType: resourceRef.MIMEType,
 			Label:    resourceRef.Label,
 		})
 	}
 
-	return Response{
+	transaction := Transaction{
 		Tokens: response.UsageMetadata.TotalTokenCount,
-		Text:   sb.String(),
-		Files:  files,
-	}, nil
+		Input: Input{
+			Type:           prompt.InputType,
+			Text:           prompt.Text,
+			CommandResult:  prompt.CommandResult,
+			FileReferences: filesReferences,
+		},
+		Output: Output{
+			Text:           responseText.String(),
+			CommandRequest: commandRequest,
+			FilesRequest:   filesRequest,
+		},
+	}
+
+	if transaction.Output.Text == "" && !transaction.Output.IsFunction() {
+		return Transaction{}, fmt.Errorf("unexpected text response returned from gemini api. expected text content. got empty string")
+	}
+
+	return transaction, nil
 }

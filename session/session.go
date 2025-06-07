@@ -15,9 +15,8 @@ import (
 
 type (
 	Entry struct {
-		Prompt   string
-		Files    []gemini.FileReference
-		Response string
+		Prompt   gemini.Input
+		Response gemini.Output
 	}
 	Record struct {
 		ID        int
@@ -31,8 +30,8 @@ type (
 const ActiveSessionFileSuffix = ".active"
 
 // Write adds the specified entry to the active session
-func Write(appDir string, entry Entry) error {
-	messages, err := Read(appDir)
+func Write(appDir string, transaction gemini.Transaction) error {
+	transactions, err := Read(appDir)
 
 	if err != nil {
 		return err
@@ -49,14 +48,7 @@ func Write(appDir string, entry Entry) error {
 	jsonEncoder := json.NewEncoder(f)
 	jsonEncoder.SetIndent("", "  ")
 
-	if err := jsonEncoder.Encode(append(messages, gemini.Message{
-		Role:  gemini.RoleUser,
-		Text:  entry.Prompt,
-		Files: entry.Files,
-	}, gemini.Message{
-		Role: gemini.RoleModel,
-		Text: entry.Response,
-	})); err != nil {
+	if err := jsonEncoder.Encode(append(transactions, transaction)); err != nil {
 		return fmt.Errorf("unable to encode session file. %w", err)
 	}
 
@@ -64,7 +56,7 @@ func Write(appDir string, entry Entry) error {
 }
 
 // Read returns all messages in the active session
-func Read(appDir string) ([]gemini.Message, error) {
+func Read(appDir string) ([]gemini.Transaction, error) {
 	f, err := openActiveSessionFile(appDir, os.O_RDONLY)
 
 	if err != nil {
@@ -73,17 +65,17 @@ func Read(appDir string) ([]gemini.Message, error) {
 
 	defer f.Close()
 
-	messages := []gemini.Message{}
+	transactions := []gemini.Transaction{}
 
-	if err := json.NewDecoder(f).Decode(&messages); err != nil {
+	if err := json.NewDecoder(f).Decode(&transactions); err != nil {
 		if err == io.EOF {
-			return []gemini.Message{}, nil
+			return []gemini.Transaction{}, nil
 		}
 
 		return nil, fmt.Errorf("unable to decode session file. %w", err)
 	}
 
-	return messages, nil
+	return transactions, nil
 }
 
 // List returns summary and meta data for all saved sessions and the active one
@@ -109,23 +101,23 @@ func List(appDir string) ([]Record, error) {
 
 		defer sessionFile.Close()
 
-		messages := []gemini.Message{}
+		transactions := []gemini.Transaction{}
 
-		if err := json.NewDecoder(sessionFile).Decode(&messages); err != nil && err != io.EOF {
+		if err := json.NewDecoder(sessionFile).Decode(&transactions); err != nil && err != io.EOF {
 			return "", fmt.Errorf("unable to decode session file. %v %v", sessionFile, err)
 		}
 
-		if len(messages) == 0 {
+		if len(transactions) == 0 {
 			return "[ no content ]", nil
 		}
 
 		const limit = 50
 
-		if len(messages[0].Text) < limit {
-			return messages[0].Text, nil
+		if len(transactions[0].Input.Text) < limit {
+			return transactions[0].Input.Text, nil
 		}
 
-		return messages[0].Text[:limit] + "...", nil
+		return transactions[0].Input.Text[:limit] + "...", nil
 	}
 
 	records := make([]Record, 0, len(files))

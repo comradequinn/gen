@@ -4,6 +4,9 @@ on:
   push:
     tags: [ "v*.*.*" ]
 
+permissions:
+  contents: write
+
 env:
   CGO_ENABLED: 0 
   APP: ${{ github.event.repository.name }}

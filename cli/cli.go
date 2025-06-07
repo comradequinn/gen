@@ -1,18 +1,27 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"time"
 )
 
 var (
-	scanner = bufio.NewScanner(os.Stdin)
-	writer  = fmt.Printf
+	Write = func(format string, a ...any) {
+		if !strings.HasSuffix(format, "\n") {
+			format += "\n"
+		}
+		fmt.Printf(format, a...)
+	}
+	WriteInfo            = func(format string, a ...any) { Write(fmt.Sprintf("\x1b[90m%v\x1b[0m", format), a...) }
+	WriteError           = func(format string, a ...any) { Write(fmt.Sprintf("\x1b[31m%v\x1b[0m", format), a...) }
+	WriteRaw             = func(format string, a ...any) { fmt.Printf(format, a...) }
+	Reader     io.Reader = os.Stdin
 )
 
-func Spin() (stopFunc func()) {
+func spin() (stopFunc func()) {
 	taskDone, spinDone := make(chan struct{}), make(chan struct{})
 
 	go func() {
@@ -21,12 +30,12 @@ func Spin() (stopFunc func()) {
 		for {
 			select {
 			case <-taskDone:
-				writer("\r \n")
+				WriteRaw("\r")
 				spinDone <- struct{}{}
 				return
 			default:
 				i++
-				writer("\r%c", spinner[i%len(spinner)])
+				WriteRaw("\r%c", spinner[i%len(spinner)])
 				<-time.After(150 * time.Millisecond)
 			}
 		}

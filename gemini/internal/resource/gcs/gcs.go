@@ -13,9 +13,10 @@ import (
 	"time"
 
 	"github.com/comradequinn/gen/gemini/internal/resource"
+	"github.com/comradequinn/gen/log"
 )
 
-func Upload(uploadRequest resource.UploadRequest, debugPrintf func(msg string, args ...any)) (resource.Reference, error) {
+func Upload(uploadRequest resource.UploadRequest) (resource.Reference, error) {
 
 	fileInfo, contentType, err := resource.FileInfo(uploadRequest.File)
 
@@ -41,7 +42,7 @@ func Upload(uploadRequest resource.UploadRequest, debugPrintf func(msg string, a
 	rq.Header.Set("Content-Type", contentType)
 	rq.Header.Set("Authorization", "Bearer "+uploadRequest.Credential)
 
-	debugPrintf("sending upload request", "type", "upload_request", "url", url, "headers", rq.Header, "bytes", strconv.FormatInt(fileInfo.Size(), 10))
+	log.DebugPrintf("sending upload request", "type", "upload_request", "url", url, "headers", rq.Header, "bytes", strconv.FormatInt(fileInfo.Size(), 10))
 
 	rs, err := http.DefaultClient.Do(rq)
 	if err != nil {
@@ -55,7 +56,7 @@ func Upload(uploadRequest resource.UploadRequest, debugPrintf func(msg string, a
 		return resource.Reference{}, fmt.Errorf("unable to read response body. %w", err)
 	}
 
-	debugPrintf("received upload response", "type", "upload_response", "status", rs.Status, "response", string(body))
+	log.DebugPrintf("received upload response", "type", "upload_response", "status", rs.Status, "response", string(body))
 
 	if rs.StatusCode != http.StatusOK || err != nil {
 		return resource.Reference{}, fmt.Errorf("upload-request failed with status code %v. error: %w. body: %v", rs.StatusCode, err, string(body))

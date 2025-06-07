@@ -16,6 +16,6 @@ func ListSessions(records []session.Record) {
 			labelPrefix = "* "
 		}
 
-		writer(fmt.Sprintf("%v #%v (%v): %v\n", labelPrefix, i+1, r.TimeStamp.Format("January 02 2006"), strings.ToLower(r.Summary)))
+		Write(fmt.Sprintf("%v #%v (%v): %v\n", labelPrefix, i+1, r.TimeStamp.Format("January 02 2006"), strings.ToLower(r.Summary)))
 	}
 }

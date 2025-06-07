@@ -10,9 +10,10 @@ import (
 	"strings"
 
 	"github.com/comradequinn/gen/gemini/internal/resource"
+	"github.com/comradequinn/gen/log"
 )
 
-func Upload(uploadRequest resource.UploadRequest, debugPrintf func(msg string, args ...any)) (resource.Reference, error) {
+func Upload(uploadRequest resource.UploadRequest) (resource.Reference, error) {
 
 	fileInfo, contentType, err := resource.FileInfo(uploadRequest.File)
 
@@ -34,7 +35,7 @@ func Upload(uploadRequest resource.UploadRequest, debugPrintf func(msg string, a
 	rq.Header.Set("X-Goog-Upload-Header-Content-Type", contentType)
 	rq.Header.Set("Content-Type", "application/json")
 
-	debugPrintf("sending start upload request", "type", "start_upload_request", "url", url, "headers", rq.Header)
+	log.DebugPrintf("sending start upload request", "type", "start_upload_request", "url", url, "headers", rq.Header)
 
 	rs, err := http.DefaultClient.Do(rq)
 	if err != nil {
@@ -44,7 +45,7 @@ func Upload(uploadRequest resource.UploadRequest, debugPrintf func(msg string, a
 
 	body, _ := io.ReadAll(rs.Body)
 
-	debugPrintf("received start upload response", "type", "start_upload_response", "status", rs.Status, "response", string(body))
+	log.DebugPrintf("received start upload response", "type", "start_upload_response", "status", rs.Status, "response", string(body))
 
 	if rs.StatusCode != http.StatusOK {
 		return resource.Reference{}, fmt.Errorf("start-upload request failed with status code %v. %v", rs.StatusCode, string(body))
@@ -70,7 +71,7 @@ func Upload(uploadRequest resource.UploadRequest, debugPrintf func(msg string, a
 	rq.Header.Set("X-Goog-Upload-Offset", "0")
 	rq.Header.Set("X-Goog-Upload-Command", "upload, finalize")
 
-	debugPrintf("sending upload request", "type", "upload_request", "url", url, "headers", rq.Header, "bytes", strconv.FormatInt(fileInfo.Size(), 10))
+	log.DebugPrintf("sending upload request", "type", "upload_request", "url", url, "headers", rq.Header, "bytes", strconv.FormatInt(fileInfo.Size(), 10))
 
 	rs, err = http.DefaultClient.Do(rq)
 	if err != nil {
@@ -80,7 +81,7 @@ func Upload(uploadRequest resource.UploadRequest, debugPrintf func(msg string, a
 
 	body, err = io.ReadAll(rs.Body)
 
-	debugPrintf("received upload response", "type", "upload_response", "status", rs.Status, "response", string(body))
+	log.DebugPrintf("received upload response", "type", "upload_response", "status", rs.Status, "response", string(body))
 
 	if rs.StatusCode != http.StatusOK || err != nil {
 		return resource.Reference{}, fmt.Errorf("upload-request failed with status code %v. error: %w. body: %v", rs.StatusCode, err, string(body))
