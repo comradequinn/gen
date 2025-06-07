@@ -24,4 +24,4 @@ examples: build
 	@${BIN}/${NAME} ${VERTEX_AUTH} -n --debug --schema="colour:string" "pick a colour of the rainbow" 2>> ${BIN}/debug.log
 	@${BIN}/${NAME} ${VERTEX_AUTH} -n --debug --schema="[]colour:string" "list all colours of the rainbow" 2>> ${BIN}/debug.log
 	@${BIN}/${NAME} ${VERTEX_AUTH} --list
-	@${BIN}/${NAME} ${VERTEX_AUTH} --delete-all
+#	@${BIN}/${NAME} ${VERTEX_AUTH} --delete-all

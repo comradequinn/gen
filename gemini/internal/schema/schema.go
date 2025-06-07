@@ -3,7 +3,8 @@ package schema
 import "encoding/json"
 
 const (
-	FinishReasonStop = "STOP"
+	FinishReasonStop     = "STOP"
+	FinishReasonToolCall = "TOOL_CALL"
 )
 
 type (
@@ -27,10 +28,11 @@ type (
 	SystemInstruction struct {
 		Parts []Part `json:"parts"`
 	}
-	GoogleSearch struct{}
-	Tool         struct {
-		GoogleSearch *GoogleSearch `json:"googleSearch,omitempty"`
+	Tool struct {
+		GoogleSearch         *GoogleSearch     `json:"googleSearch,omitempty"`
+		FunctionDeclarations []json.RawMessage `json:"functionDeclarations,omitempty"`
 	}
+	GoogleSearch     struct{}
 	GenerationConfig struct {
 		Temperature      float64         `json:"temperature"`
 		TopP             float64         `json:"topP"`
@@ -52,13 +54,16 @@ type (
 
 type (
 	Part struct {
-		Text string    `json:"text,omitzero"`
-		File *FileData `json:"fileData,omitempty"`
+		Text             string          `json:"text,omitzero"`
+		File             *FileData       `json:"fileData,omitempty"`
+		FunctionCall     json.RawMessage `json:"function_call,omitempty"`
+		FunctionResponse json.RawMessage `json:"function_response,omitempty"`
 	}
 	FileData struct {
 		MIMEType string `json:"mimeType"`
 		URI      string `json:"fileUri"`
 	}
+
 	Content struct {
 		Role  string `json:"role"`
 		Parts []Part `json:"parts"`

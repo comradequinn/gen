@@ -14,44 +14,6 @@ import (
 	"github.com/comradequinn/gen/gemini/internal/schema"
 )
 
-type (
-	Config struct {
-		GeminiURL      string
-		Credential     string
-		Platform       Platform
-		FileStorageURL string
-		SystemPrompt   string
-		MaxTokens      int
-		Temperature    float64
-		TopP           float64
-		UseCase        string
-		Grounding      bool
-	}
-	Prompt struct {
-		History []Message
-		Text    string
-		Files   []string
-		Schema  string
-	}
-	FileReference struct {
-		URI      string `json:"uri"`
-		MIMEType string `json:"mimeType"`
-		Label    string `json:"label"`
-	}
-	Response struct {
-		Tokens int
-		Text   string
-		Files  []FileReference
-	}
-	Role    string
-	Message struct {
-		Role  Role            `json:"role"`
-		Text  string          `json:"text"`
-		Files []FileReference `json:"files,omitempty"`
-	}
-	Platform int
-)
-
 const (
 	PlatformVertex             Platform = 1
 	PlatformGenerativeLanguage Platform = 2
@@ -68,14 +30,19 @@ var (
 )
 
 const (
+	InputTypeUser  = "user"
+	InputTypeShell = "shell"
+)
+
+const (
 	RoleUser  = "user"
 	RoleModel = "model"
 )
 
 // Generate queries the Gemini API with the specified prompt and returns the result
-func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...any)) (Response, error) {
+func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...any)) (Transaction, error) {
 	if cfg.MaxTokens == 0 || cfg.Temperature == 0 {
-		return Response{}, fmt.Errorf("invalid prompt. maxtokens and temperature must be specified")
+		return Transaction{}, fmt.Errorf("invalid prompt. maxtokens and temperature must be specified")
 	}
 
 	if prompt.Schema != "" && cfg.Grounding {
@@ -93,35 +60,48 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 
 	contents := make([]schema.Content, 0, len(prompt.History)+1)
 
-	for _, message := range prompt.History {
+	for _, transaction := range prompt.History {
 		content := schema.Content{
-			Role:  string(message.Role),
-			Parts: []schema.Part{{Text: message.Text}}}
-		if len(message.Files) > 0 {
-			for _, fileReference := range message.Files {
+			Role:  RoleUser,
+			Parts: []schema.Part{{Text: transaction.Input.Text}}}
+		if len(transaction.Input.FileReferences) > 0 {
+			for _, fileReference := range transaction.Input.FileReferences {
 				content.Parts = append(content.Parts, schema.Part{
 					File: &schema.FileData{URI: fileReference.URI, MIMEType: fileReference.MIMEType},
 				})
 			}
 		}
-
 		contents = append(contents, content)
-	}
-
-	content := schema.Content{
-		Role: RoleUser,
-		Parts: []schema.Part{
-			{Text: prompt.Text},
-		},
+		contents = append(contents, schema.Content{
+			Role:  RoleModel,
+			Parts: []schema.Part{{Text: transaction.Output.Text}}})
 	}
 
 	var (
+		part                schema.Part
 		resourceRefs        []resource.Reference
 		resourceUploadFunc  resource.UploadFunc
 		url                 string
 		authorisationHeader string
 		err                 error
 	)
+
+	if prompt.InputType == InputTypeUser {
+		part = schema.Part{Text: prompt.Text}
+	} else {
+		j, err := prompt.ShellCommandResult.marshalJSON()
+
+		if err != nil {
+			return Transaction{}, fmt.Errorf("unable to marshal command result into json. %w", err)
+		}
+
+		part = schema.Part{FunctionResponse: json.RawMessage(j)}
+	}
+
+	content := schema.Content{
+		Role:  RoleUser,
+		Parts: []schema.Part{part},
+	}
 
 	switch cfg.Platform {
 	case PlatformGenerativeLanguage:
@@ -142,7 +122,7 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 			UploadFunc: resourceUploadFunc,
 			Files:      prompt.Files,
 		}, debugPrintf); err != nil {
-			return Response{}, err
+			return Transaction{}, err
 		}
 
 		for _, ref := range resourceRefs {
@@ -157,6 +137,16 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 	if cfg.Grounding {
 		tools = []schema.Tool{
 			{GoogleSearch: &schema.GoogleSearch{}},
+		}
+	}
+
+	if cfg.Agentic {
+		shellFunction := "executes a command in the terminal of the user. the name parameter states the command to be executed. the arguments object defines each argument. " +
+			"this command is only to be used to perform local operations. such as querying or interacting with the file system or a local git repo. " +
+			"it is never be used as a proxy to access remote functionality. for example, using curl to invoke a http api is not an appropriate use of the command."
+		tools = []schema.Tool{
+			{FunctionDeclarations: []json.RawMessage{json.RawMessage(fmt.Sprintf(`{ "name": "local-shell-command","description": "%v", "parameters": `+
+				`{ "type": "object", "properties": { "name":  { "type": "string" }, "arguments": { "type": "array", "items": { "type": "string" } } } } }`, shellFunction))}},
 		}
 	}
 
@@ -182,7 +172,7 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 		Tools:            tools,
 		GenerationConfig: generationConfig,
 	}); err != nil {
-		return Response{}, fmt.Errorf("unable to encode gemini request as json. %w", err)
+		return Transaction{}, fmt.Errorf("unable to encode gemini request as json. %w", err)
 	}
 
 	rq, _ := http.NewRequest(http.MethodPost, url, &request)
@@ -195,7 +185,7 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 	rs, err := http.DefaultClient.Do(rq)
 
 	if err != nil {
-		return Response{}, fmt.Errorf("unable to send request to gemini api. %w", err)
+		return Transaction{}, fmt.Errorf("unable to send request to gemini api. %w", err)
 	}
 
 	defer rs.Body.Close()
@@ -203,23 +193,23 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 	body, err := io.ReadAll(rs.Body)
 
 	if err != nil {
-		return Response{}, fmt.Errorf("unable to read response body. %w", err)
+		return Transaction{}, fmt.Errorf("unable to read response body. %w", err)
 	}
 
 	debugPrintf("received generate response", "type", "generate_response", "status", rs.Status, "request", string(body))
 
 	if rs.StatusCode != 200 {
-		return Response{}, fmt.Errorf("non-200 status code returned from gemini api. %s", body)
+		return Transaction{}, fmt.Errorf("non-200 status code returned from gemini api. %s", body)
 	}
 
 	response := schema.Response{}
 
 	if err := json.Unmarshal(body, &response); err != nil {
-		return Response{}, fmt.Errorf("unable to parse response body. %w", err)
+		return Transaction{}, fmt.Errorf("unable to parse response body. %w", err)
 	}
 
-	if len(response.Candidates) == 0 || response.Candidates[0].FinishReason != schema.FinishReasonStop {
-		return Response{}, fmt.Errorf("no valid response candidates returned. response: %s", body)
+	if len(response.Candidates) == 0 || (response.Candidates[0].FinishReason != schema.FinishReasonStop && response.Candidates[0].FinishReason != schema.FinishReasonToolCall) {
+		return Transaction{}, fmt.Errorf("no valid response candidates returned. response: %s", body)
 	}
 
 	sb := strings.Builder{}
@@ -230,19 +220,26 @@ func Generate(cfg Config, prompt Prompt, debugPrintf func(msg string, args ...an
 
 	debugPrintf("token count value reported", "type", "report", "token_count", response.UsageMetadata.TotalTokenCount)
 
-	files := make([]FileReference, 0, len(resourceRefs))
+	filesReferences := make([]FileReference, 0, len(resourceRefs))
 
 	for _, resourceRef := range resourceRefs {
-		files = append(files, FileReference{
+		filesReferences = append(filesReferences, FileReference{
 			URI:      resourceRef.URI,
 			MIMEType: resourceRef.MIMEType,
 			Label:    resourceRef.Label,
 		})
 	}
 
-	return Response{
+	return Transaction{
 		Tokens: response.UsageMetadata.TotalTokenCount,
-		Text:   sb.String(),
-		Files:  files,
+		Input: Input{
+			Type:               prompt.InputType,
+			Text:               prompt.Text,
+			ShellCommandResult: prompt.ShellCommandResult,
+			FileReferences:     filesReferences,
+		},
+		Output: Output{
+			Text: sb.String(),
+		},
 	}, nil
 }

@@ -126,7 +126,7 @@ func main() {
 	schema, err := schema.Build(*args.SchemaDefinition)
 	checkFatalf(err != nil, "invalid schema definition. %v", err)
 
-	messages, err := session.Read(*args.AppDir)
+	history, err := session.Read(*args.AppDir)
 	checkFatalf(err != nil, "unable to read history. %v", err)
 
 	files := []string{}
@@ -139,7 +139,7 @@ func main() {
 		}
 	}
 
-	rs, err := gemini.Generate(
+	transaction, err := gemini.Generate(
 		gemini.Config{
 			Platform:       platform,
 			GeminiURL:      apiURL,
@@ -151,34 +151,32 @@ func main() {
 			TopP:           *args.TopP,
 			Grounding:      !*args.DisableGrounding,
 			UseCase:        *args.UseCase,
+			Agentic:        true,
 		},
 		gemini.Prompt{
-			Text:    prompt,
-			Files:   files,
-			History: messages,
-			Schema:  schema,
+			Text:      prompt,
+			Files:     files,
+			History:   history,
+			InputType: gemini.InputTypeUser,
+			Schema:    gemini.JSONSchema(schema),
 		}, slog.Debug)
 
 	checkFatalf(err != nil, "error with gemini api. %v", err)
 
-	checkFatalf(session.Write(*args.AppDir, session.Entry{
-		Prompt:   prompt,
-		Response: rs.Text,
-		Files:    rs.Files,
-	}) != nil, "unable to update session. %v", err)
+	checkFatalf(session.Write(*args.AppDir, transaction) != nil, "unable to update session. %v", err)
 
 	stopSpinner()
 
-	fmt.Printf("%v\n\n", rs.Text)
+	fmt.Printf("%v\n\n", transaction.Output.Text)
 
 	if *args.Stats {
 		_ = json.NewEncoder(os.Stderr).Encode(map[string]map[string]string{
 			"stats": {
 				"systemPromptBytes": fmt.Sprintf("%v", len(*args.SystemPrompt)),
 				"promptBytes":       fmt.Sprintf("%v", len(prompt)),
-				"responseBytes":     fmt.Sprintf("%v", len(rs.Text)),
-				"tokens":            fmt.Sprintf("%v", rs.Tokens),
-				"files":             fmt.Sprintf("%v", len(rs.Files)),
+				"responseBytes":     fmt.Sprintf("%v", len(transaction.Output.Text)),
+				"tokens":            fmt.Sprintf("%v", transaction.Tokens),
+				"files":             fmt.Sprintf("%v", len(transaction.Input.FileReferences)),
 			},
 		})
 	}

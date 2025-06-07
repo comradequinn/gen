@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/comradequinn/gen/gemini"
 	"github.com/comradequinn/gen/session"
 )
 
@@ -14,10 +15,11 @@ func TestSession(t *testing.T) {
 	defer os.RemoveAll(testDir)
 
 	writeSession := func(prompt, response string) {
-		if err := session.Write(testDir, session.Entry{
-			Prompt:   prompt,
-			Response: response,
-		}); err != nil {
+		if err := session.Write(testDir,
+			gemini.Transaction{
+				Input:  gemini.Input{Text: prompt},
+				Output: gemini.Output{Text: response},
+			}); err != nil {
 			t.Fatalf("expected no error writing session. got %v", err)
 		}
 	}
@@ -38,7 +40,7 @@ func TestSession(t *testing.T) {
 		}
 	}
 
-	assertInt(len(actualsession), 6, "session count")
+	assertInt(len(actualsession), 3, "session count")
 
 	assertString := func(actual, expected, message string) {
 		if actual != expected {
@@ -46,12 +48,12 @@ func TestSession(t *testing.T) {
 		}
 	}
 
-	assertString(actualsession[0].Text, "test-prompt-1", "first prompt")
-	assertString(actualsession[1].Text, "test-response-1", "first response")
-	assertString(actualsession[2].Text, "test-prompt-2", "second prompt")
-	assertString(actualsession[3].Text, "test-response-2", "second response")
-	assertString(actualsession[4].Text, "test-prompt-3", "third prompt")
-	assertString(actualsession[5].Text, "test-response-3", "third response")
+	assertString(actualsession[0].Input.Text, "test-prompt-1", "first prompt")
+	assertString(actualsession[0].Output.Text, "test-response-1", "first response")
+	assertString(actualsession[1].Input.Text, "test-prompt-2", "second prompt")
+	assertString(actualsession[1].Output.Text, "test-response-2", "second response")
+	assertString(actualsession[2].Input.Text, "test-prompt-3", "third prompt")
+	assertString(actualsession[2].Output.Text, "test-response-3", "third response")
 
 	if err := session.Stash(testDir); err != nil {
 		t.Fatalf("expected no error stashing session. got %v", err)
