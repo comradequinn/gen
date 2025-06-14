@@ -16,12 +16,12 @@ func execute(output gemini.Output, cfg gemini.Config, scriptMode bool) (gemini.C
 		Executed: true,
 	}
 
-	if output.Text != "" && !scriptMode {
-		WriteInfo("%v", output.Text)
-	}
-
 	if output.CommandRequest.Text == "" {
 		return result, fmt.Errorf("command text is empty")
+	}
+
+	if !scriptMode {
+		WriteInfo("executing... [%v]", output.CommandRequest.Text)
 	}
 
 	log.DebugPrintf("executing command locally", "type", "cmd_executing", "text", output.CommandRequest.Text)

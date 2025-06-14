@@ -43,7 +43,7 @@ To install `gen`, download the appropriate tarball for your `os` from the [relea
 Optionally, you can use the below script to do that for you
 
 ```bash
-export VERSION="v1.0.0"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
+export VERSION="v1.1.0"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
 ```
 
 ### Authentication
@@ -135,17 +135,15 @@ gen --new --files ./main.go "summarise this code for me" # attach a file to the 
 # >> This file contains badly organised and incomprehensible code, even to an LLM... (response ommitted for brevity)
 
 gen --new --exec "list all .go files in my current directory" # directly execute and interpret terminal commands to perform tasks (-x can be used as a shortform for --exec)
-# >> Executing `ls *.go` to list all .go files in the current directory...
-# >> main.go
+# >> executing... [ls -l *.go]
+# >> -rw-rw-r-- 1 me me 3535 Jun 14 22:48 main.go
 
-gen --exec "copy the files to a directory named 'backup'" # execute a follow up task using the previous task for context, this time containing multiple steps
-# >> Executing `mkdir -p backup` to create the 'backup' directory if it doesn't already exist...
-# >> Okay, I've created the 'backup' directory. Now, copying all .go files to the 'backup' directory...
-# >> Executing `cp *.go backup/` to copy all .go files to the 'backup' directory...
+gen --exec "copy the files to a directory named 'backup'" # execute a follow up task using the previous task for context
+# >> executing... [mkdir -p backup; cp *.go backup/]
 # >> OK
 
 gen --new --exec "write the contents returned from github's home page to a file named github.html" # access and parse external resources 
-# >> Executing `curl https://github.com -o github.html` to write the contents of GitHub's home page to a file named github.html...
+# >> executing... [curl https://github.com > github.html]
 # >> OK
 ```
 
@@ -200,7 +198,7 @@ command to terminate the process with a return code of of 2"
 case $? in
     0)
         # take whatever action is required for a completed code review with a positive outcome...
-        echo "code review completed. code is a masterpiece" 
+        echo "code review completed. code is a masterpiece. score $(cat result.txt)" 
         ;;
     1)
         # take whatever action is required for code review that could not be completed due to an error executing the commands...
@@ -208,14 +206,13 @@ case $? in
         ;;
     2)
         # take whatever action is required for a completed code review with a negative outcome...
-        echo "code review completed. code is awful; an afront to the intellectual diginity of man and beast" 
+        echo "code review completed. code is awful; an afront to the intellectual diginity of man and beast. detailed feedback: $(cat feedback.txt)" 
         ;;
     *)
         # default error case for any other exit codes
         echo "an unknown error occurred. exit code: $?"
         ;;
 esac
-# >> code review completed. code is a masterpiece
 ```
 
 When executed, the above will cause `gen` to silently perform all the tasks and the subsequent part of the script will then print an appropriate response based on `gen's` return code. In the prompt used, the `exit code` to indicate code review failure was set as `2`; this is optional and purely to allow the two causes of failure to be distinguished in the script.
@@ -296,7 +293,7 @@ gen -n "how would I list all files in my home directory, including hidden ones, 
 
 # switch to exec mode by passing --exec flag for the next prompt and use the previous context to infer the action gen is take
 gen --exec "ok, execute that for me and print the results"
-# >> Executing `find ~ -maxdepth 1 -type f -mtime -1 -ls` to list all files (including hidden) in your home directory modified in the last 24 hours...
+# >> executing... [find ~ -mtime -1]
 # >> 
 # >> 40344544     56 -rw-------   1 me     me        54416 Jun 12 00:08 /home/me/.bash_history
 # >> 40343278      4 -rw-rw-r--   1 me     me          281 Jun 12 20:15 /home/me/.gitconfig
@@ -554,7 +551,7 @@ gen -n --schema "$(cat ./schema.json)" "pick a colour of the rainbow"
 
 ## Model Configuration 
 
-Using `gen` you can set various model configuration options. These include `model version`, `temperature`, `top-p` and `token limits`. An example is shown below.
+By default, `gen` uses the latest `flash` model at the time of release. By passing the `--pro` flag, you can switch to using the latest thinking model (at the time of release). You can also set the model directly, along with `temperature`, `top-p` and `token limits`. An example is shown below.
 
 ```bash
 gen --model 'custom-gemini-exp-model-123' --temperature 0.1 --top-p 0.1 --max-tokens=1000 "how do I list all files in my current directory?"

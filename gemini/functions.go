@@ -47,10 +47,7 @@ func (c commandExecutionTool) marshalJSON() json.RawMessage {
 		"operations, such as querying or interacting with the file system or a local git repo. however, you may also use curl, wget and similar commands, if the user has explicitly asked you to do so, or it is implicit in the nature of their "+
 		"request, such as a file download, api or web access. "+
 		""+
-		"when you choose to execute a command using this function you must provide a statement in your response alongside the command text that states the command you are executing. if it is "+
-		"not clear from the user's original prompt, also include in this text why you are executing the command. this should be a very concise statement, without pleasantries like 'OK', and in the present "+
-		"tense. for example: "+
-		"'Executing git diff HEAD~1 to ascertain the changes made since your last git commit...'. the trailing '...' is important as it implies activity is occurring. "+
+		"when you choose to execute a command using this function do not provide any textual information to accompany it, as this will not be shown to the user.  "+
 		""+
 		"when the command spans more than one statement, join these lines with a ';', do not use new lines. similarly, never add new lines for formatting, present it all as a single line. such formatting is not required as "+
 		"it can cause encoding errors with regexes and other escaped characters in the command, makes logs less readable as they need escaping and they are removed by the client before the user sees them anyway. "+

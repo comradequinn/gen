@@ -33,7 +33,7 @@ type Args struct {
 	Stats                                     *bool
 	AppDir                                    *string
 	CustomModel                               *string
-	FlashModel                                *bool
+	ProModel                                  *bool
 	MaxTokens                                 *int
 	Temperature                               *float64
 	TopP                                      *float64
@@ -41,7 +41,7 @@ type Args struct {
 	UseCase                                   *string
 }
 
-func ReadArgs(homeDir, app, flashModel string) Args {
+func ReadArgs(homeDir, app, proModel string) Args {
 	args := Args{}
 
 	args.Version = flag.Bool("version", false, "print the version")
@@ -84,7 +84,7 @@ func ReadArgs(homeDir, app, flashModel string) Args {
 	args.Stats = flag.Bool("stats", false, "print count of tokens used")
 	args.AppDir = flag.String("app-dir", path.Join(homeDir, "."+app), fmt.Sprintf("location of the %v app directory", app))
 	args.CustomModel = flag.String("model", "", "the specific model to use")
-	args.FlashModel = flag.Bool("flash", false, fmt.Sprintf("use the cheaper %v model", flashModel))
+	args.ProModel = flag.Bool("pro", false, fmt.Sprintf("use the thinking %v model", proModel))
 	args.MaxTokens = flag.Int("max-tokens", 10000, "the maximum number of tokens to allow in a response")
 	args.Temperature = flag.Float64("temperature", 0, "the temperature setting for the model")
 	args.TopP = flag.Float64("top-p", 0.2, "the top-p setting for the model")

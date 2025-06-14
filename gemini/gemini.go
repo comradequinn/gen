@@ -181,6 +181,10 @@ func Generate(cfg Config, prompt Prompt) (Transaction, error) {
 		},
 	}
 
+	if transaction.Output.IsFunction() {
+		transaction.Output.Text = "" // discard any, typically inconsistent, output describing command execution, it can be derived from the function itself more consistently
+	}
+
 	if transaction.Output.Text == "" && !transaction.Output.IsFunction() {
 		return Transaction{}, fmt.Errorf("unexpected text response returned from gemini api. expected text content. got empty string")
 	}
