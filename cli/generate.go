@@ -35,11 +35,13 @@ func Generate(cfg gemini.Config, args Args, scriptMode bool, promptText, schema 
 			enc.SetIndent("", "  ")
 			_ = enc.Encode(map[string]map[string]string{
 				"stats": {
+					"model":             cfg.Model,
 					"systemPromptBytes": fmt.Sprintf("%v", len(*args.SystemPrompt)),
 					"promptBytes":       fmt.Sprintf("%v", len(prompt.Text)),
 					"responseBytes":     fmt.Sprintf("%v", len(transaction.Output.Text)),
 					"tokens":            fmt.Sprintf("%v", transaction.Tokens),
 					"files":             fmt.Sprintf("%v", len(transaction.Input.FileReferences)),
+					"functionCall":      fmt.Sprintf("%v", transaction.Output.IsFunction()),
 				},
 			})
 		}
