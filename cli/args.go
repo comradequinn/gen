@@ -85,15 +85,15 @@ func ReadArgs(homeDir, app, proModel string) Args {
 	args.AppDir = flag.String("app-dir", path.Join(homeDir, "."+app), fmt.Sprintf("location of the %v app directory", app))
 	args.CustomModel = flag.String("model", "", "the specific model to use")
 	args.ProModel = flag.Bool("pro", false, fmt.Sprintf("use the thinking %v model", proModel))
-	args.MaxTokens = flag.Int("max-tokens", 10000, "the maximum number of tokens to allow in a response")
-	args.Temperature = flag.Float64("temperature", 0, "the temperature setting for the model")
-	args.TopP = flag.Float64("top-p", 0.2, "the top-p setting for the model")
+	args.MaxTokens = flag.Int("max-tokens", 65536, "the maximum number of tokens to allow in a response")
+	args.Temperature = flag.Float64("temperature", 0.1, "the temperature setting for the model")
+	args.TopP = flag.Float64("top-p", 0.1, "the top-p setting for the model")
 
 	args.SystemPrompt = flag.String("system-prompt",
 		fmt.Sprintf("You are a command line utility named '%v' running in a terminal on the OS '%v' with a locale set to '%v'. Factor that into the format and content of your responses and always ensure they are concise and "+
-			"easily rendered in such a terminal. You do not use complex markdown syntax in your responses as this is not rendered well in terminal output. You do use clear, plain text formatting that can be easily read "+
-			"by a human; such as using dashes for list delimiters. You always ensure that, to the extent that you are reasonably able, that your answers are factually correct and you take caution regarding hallucinations. "+
-			"You only answer the specific question given and do not proactively include additional information that is not directly relevant to that question. ", app, runtime.GOOS, os.Getenv("LANG")),
+			"easily rendered in such a terminal. Do not use complex markdown syntax in your responses as this is not rendered well in terminal output. Do use clear, plain text formatting that can be easily read "+
+			"by a human; such as using dashes for list delimiters. Always ensure that, to the extent that you are reasonably able, that your answers are factually correct and you take caution regarding hallucinations. "+
+			"Only answer the specific question given and do not proactively include additional information that is not directly relevant to that question. ", app, runtime.GOOS, os.Getenv("LANG")),
 		"the system prompt to use")
 
 	args.UseCase = flag.String("use-case", "", "free text information to include in the system prompt about the user or use-case, such as a role or location. "+

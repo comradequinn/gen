@@ -43,7 +43,7 @@ To install `gen`, download the appropriate tarball for your `os` from the [relea
 Optionally, you can use the below script to do that for you
 
 ```bash
-export VERSION="v1.2.0"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
+export VERSION="v1.3.0"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
 ```
 
 ### Authentication
@@ -566,21 +566,31 @@ While the effects of `top-p` and `temperature` are out of the scope of this docu
 Running `gen` with the `--stats` flag will cause usage data to be written to `stderr`. This allows it be processed separately from the main response. An example is shown below.
 
 ```bash
-gen -n --stats "what is the weather like next week?"
+gen -n --stats "what is the weather like in london next week?"
 ```
 
 This will produce output similar to the below
 
-```
+```bash
 The weather will be very hot next week
 
-{"stats":{"files":"0","promptBytes":"35","responseBytes":"114","systemPromptBytes":"771","tokens":"380"}}
+{
+  "stats": {
+    "files": "0",
+    "functionCall": "false",
+    "model": "gemini-2.5-flash-preview-05-20",
+    "promptBytes": "45",
+    "responseBytes": "1077",
+    "systemPromptBytes": "761",
+    "tokens": "757"
+  }
+}
 ```
 
 To redirect the `stats` component to a file, use standard redirection techniques, such as in the below example, where `stderr` is redirected to a local file.
 
 ```bash
-gen -n --stats "what is the weather like next week?" 2> stats.txt
+gen -n --stats "what is the weather like in london next week?" 2> stats.txt
 ```
 
 This will produce output similar to the below
@@ -591,9 +601,18 @@ The weather will be very hot next week
 
 And the contents of `stats.txt` will be similar to the following.
 
-```bash
-# file: stats.txt
-{"stats":{"files":"0","promptBytes":"35","responseBytes":"114","systemPromptBytes":"771","tokens":"380"}}
+```json
+{
+  "stats": {
+    "files": "0",
+    "functionCall": "false",
+    "model": "gemini-2.5-flash-preview-05-20",
+    "promptBytes": "45",
+    "responseBytes": "1077",
+    "systemPromptBytes": "761",
+    "tokens": "757"
+  }
+}
 ```
 
 ## Debugging
