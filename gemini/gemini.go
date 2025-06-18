@@ -24,8 +24,8 @@ var (
 		Pro   string
 		Flash string
 	}{
-		Pro:   "gemini-2.5-pro-preview-06-05",
-		Flash: "gemini-2.5-flash-preview-05-20",
+		Pro:   "gemini-2.5-pro",
+		Flash: "gemini-2.5-flash",
 	}
 )
 

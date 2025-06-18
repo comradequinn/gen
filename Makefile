@@ -30,6 +30,6 @@ examples: build
 	@${BIN}/${NAME} ${VERTEX_AUTH} -n -v --schema="[]colour:string:a rainbow colour" "list all colours of the rainbow" 2>> ${BIN}/debug.log
 	@${BIN}/${NAME} ${VERTEX_AUTH} -n -v --exec "list all files in my current directory" 2>> ${BIN}/debug.log	
 	@${BIN}/${NAME} ${VERTEX_AUTH} -v --exec "what do the files indicate may be the purpose of the directory?" 2>> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} -v --exec "copy the last line from any of them into a new file name temp.txt" 2>> ${BIN}/debug.log
+	@${BIN}/${NAME} ${VERTEX_AUTH} -v --exec "copy the last three lines from any of them into a new file name temp.txt" 2>> ${BIN}/debug.log
 	@${BIN}/${NAME} ${VERTEX_AUTH} --list
-#	@${BIN}/${NAME} ${VERTEX_AUTH} --delete-all
+	@${BIN}/${NAME} ${VERTEX_AUTH} --delete-all
