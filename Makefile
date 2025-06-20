@@ -16,20 +16,23 @@ test:
 install: build
 	@sudo cp ${BIN}/${NAME} /usr/local/bin/${NAME}
 
-#VERTEX_AUTH=
-VERTEX_AUTH=--vertex-access-token "$$(gcloud auth application-default print-access-token)" --gcp-project "comradequinn" --gcs-bucket "comradequinn-default"
+VERTEX_AUTH= --vertex-access-token "$$(gcloud auth application-default print-access-token)" --gcp-project "comradequinn" --gcs-bucket "comradequinn-default"
 
 .PHONY: examples
 examples: build
-	@${BIN}/${NAME} ${VERTEX_AUTH} --delete-all 2> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} -n -v "in one sentence, what is the weather like in london tomorrow?" 2>> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} -v "in one sentence, what about the day after?" 2>> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} -n --pro -v -f main.go "in one sentence, summarise this file" 2>> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} -v --stats "is it well written?" 2>> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} -n -v --schema="colour:string" "pick a colour of the rainbow" 2>> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} -n -v --schema="[]colour:string:a rainbow colour" "list all colours of the rainbow" 2>> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} -n -v --exec "list all files in my current directory" 2>> ${BIN}/debug.log	
-	@${BIN}/${NAME} ${VERTEX_AUTH} -v --exec "what do the files indicate may be the purpose of the directory?" 2>> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} -v --exec "copy the last three lines from any of them into a new file name temp.txt" 2>> ${BIN}/debug.log
-	@${BIN}/${NAME} ${VERTEX_AUTH} --list
-	@${BIN}/${NAME} ${VERTEX_AUTH} --delete-all
+	${BIN}/${NAME} --delete-all 2> ${BIN}/debug.log
+	${BIN}/${NAME} --new --verbose "in one sentence, what is the weather like in london tomorrow?" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} -v "in one sentence, what about the day after?" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} -n -v -f main.go --pro "in one sentence, summarise this file" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} -v --stats "is it well written?" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} -n -v --schema="colour:string" "pick a colour of the rainbow" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} -n -v -s="[]colour:string:a rainbow colour" "list all colours of the rainbow" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} -n -v -x "list all files in my current directory" 2>> ${BIN}/debug.log	
+	${BIN}/${NAME} -v -x "what do the files indicate may be the purpose of the directory?" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} -v -x "copy the last three lines from any of them into a new file name temp.txt" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} ${VERTEX_AUTH} -n -v -x --script "list all .go files" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} ${VERTEX_AUTH} -v -x -q "count them" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} ${VERTEX_AUTH} -v -f main.go "how many lines in this file?" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} --list
+	${BIN}/${NAME} --delete-all
+	${BIN}/${NAME} -l

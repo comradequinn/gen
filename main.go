@@ -29,14 +29,11 @@ func main() {
 
 	args := cli.ReadArgs(os.Getenv("HOME"), app, gemini.Models.Pro)
 
-	log.Init(*args.Debug || *args.DebugShort, cli.WriteError)
+	log.Init(args.Debug(), cli.WriteError)
 
-	apiCustomURL, uploadCustomURL := *args.CustomURL, *args.CustomUploadURL
-	gcpProjectID, apiCredential, gcsBucketName := *args.GCPProject+*args.GCPProjectShort, *args.VertexAccessToken+*args.VertexAccessTokenShort, *args.GCSBucket+*args.GCSBucketShort
-	commandExecutionEnabled, commandApprovalEnabled := *args.CommandExecution || *args.CommandExecutionShort, *args.CommandApproval || *args.CommandApprovalShort
-	scriptMode := *args.Script || *args.ScriptShort
+	log.FatalfIf(args.Script() && args.CommandApproval(), "command approval cannot be enabled in script mode")
 
-	log.FatalfIf(scriptMode && commandApprovalEnabled, "command approval cannot be enabled in script mode")
+	apiCredential := args.VertexAccessToken()
 
 	if apiCredential == "" {
 		apiCredential = os.Getenv("GEMINI_API_KEY")
@@ -47,21 +44,21 @@ func main() {
 		case *args.Version:
 			cli.Write("%v %v %v (pro-model: %v, flash-model: %v)\n", app, tag, commit, gemini.Models.Pro, gemini.Models.Flash)
 			os.Exit(0)
-		case *args.NewSession || *args.NewSessionShort:
+		case args.NewSession():
 			session.Stash(*args.AppDir)
-		case *args.RestoreSession > 0 || *args.RestoreSessionShort > 0:
-			err := session.Restore(*args.AppDir, *args.RestoreSession+*args.RestoreSessionShort)
+		case args.RestoreSession() > 0:
+			err := session.Restore(*args.AppDir, args.RestoreSession())
 			log.FatalfIf(err != nil, "unable to restore session. %v", err)
 			os.Exit(0)
-		case *args.DeleteSession > 0 || *args.DeleteSessionShort > 0:
-			err := session.Delete(*args.AppDir, *args.DeleteSession+*args.DeleteSessionShort)
+		case args.DeleteSession() > 0:
+			err := session.Delete(*args.AppDir, args.DeleteSession())
 			log.FatalfIf(err != nil, "unable to delete session. %v", err)
 			os.Exit(0)
 		case *args.DeleteAllSessions:
 			err := session.DeleteAll(*args.AppDir)
 			log.FatalfIf(err != nil, "unable to delete sessions. %v", err)
 			os.Exit(0)
-		case *args.ListSessions || *args.ListSessionsShort:
+		case args.ListSessions():
 			records, err := session.List(*args.AppDir)
 			log.FatalfIf(err != nil, "unable to list history. %v", err)
 			cli.ListSessions(records)
@@ -81,12 +78,12 @@ func main() {
 		model = gemini.Models.Pro
 	}
 
-	schema, err := schema.Build(*args.SchemaDefinition + *args.SchemaDefinitionShort)
+	schema, err := schema.Build(args.SchemaDefinition())
 	log.FatalfIf(err != nil, "invalid schema definition. %v", err)
 
 	files := []string{}
 	{
-		if filePattern := *args.Files + *args.FilesShort; filePattern != "" {
+		if filePattern := args.Files(); filePattern != "" {
 			files = strings.Split(filePattern, ",")
 			for i := range files {
 				files[i] = strings.TrimSpace(files[i])
@@ -95,19 +92,19 @@ func main() {
 	}
 
 	cli.Generate(gemini.Config{
-		GeminiURL:        apiCustomURL,
+		GeminiURL:        *args.CustomURL,
 		Credential:       apiCredential,
-		GCPProject:       gcpProjectID,
-		GCSBucket:        gcsBucketName,
+		GCPProject:       args.GCPProject(),
+		GCSBucket:        args.GCSBucket(),
 		Model:            model,
-		FileStorageURL:   uploadCustomURL,
+		FileStorageURL:   *args.CustomUploadURL,
 		SystemPrompt:     *args.SystemPrompt,
 		MaxTokens:        *args.MaxTokens,
 		Temperature:      *args.Temperature,
 		TopP:             *args.TopP,
 		Grounding:        !*args.DisableGrounding,
 		UseCase:          *args.UseCase,
-		CommandExecution: commandExecutionEnabled,
-		CommandApproval:  commandApprovalEnabled,
-	}, args, scriptMode, promptText, schema, files)
+		CommandExecution: args.CommandExecution(),
+		CommandApproval:  args.CommandApproval(),
+	}, args, args.Script(), promptText, schema, files)
 }

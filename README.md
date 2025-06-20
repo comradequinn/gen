@@ -43,7 +43,7 @@ To install `gen`, download the appropriate tarball for your `os` from the [relea
 Optionally, you can use the below script to do that for you
 
 ```bash
-export VERSION="v1.3.1"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
+export VERSION="v1.3.2"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
 ```
 
 ### Authentication
@@ -113,59 +113,73 @@ These examples show typical sequences for the two forms of `gen` usage: interact
 The following example shows the fundamentals of interactive, conversational usage of `gen` within a user's terminal
 
 ```bash
-gen "how do I list all files in my current directory?" # ask a question
-# >> to list all files in the current directory run the... (response ommitted for brevity)
+gen "what is the latest version of go?" # ask a question
+# >> The latest stable version of Go is.... (response ommitted for brevity)
 
-gen "include timestamps in the output" # ask a follow up question relying on the previous question for context
-# >> to include timestamps in the directory listing output... (response ommitted for brevity)
+gen "what were the major amendments in that release?" # ask a follow up question relying on the previous question for context
+# >> the release introduced several significant amendments across its toolchain, runtime and... (response ommitted for brevity)
 
-gen --new "what is the weather like in london tomorrow?" # stash the existing conversational context and start a new session (-n can be used as a shortform of --new)
+gen -n "what is the weather like in london tomorrow?" # stash the existing conversational context and start a new session (-n is the shortform of --new)
 # >> In London tomorrow it will be grey and wet... (response ommitted for brevity)
 
-gen --list # show current and active sessions, the asterix indicates the active session (-l can be used as a shortform of --list)
-# >>   #1 (April 24 2025): 'how do i list all files in my current directory?'
-# >> * #2 (April 24 2025): 'what is the weather like in london tomorrow?'
+gen -l # show current and active sessions, the asterix indicates the active session (-l is the shortform of --list)
+   #1 (April 26 2025): what is the latest version of go?
+*  #2 (April 26 2025): what is the weather like in london tomorrow?
 
-gen --restore 1 # switch the active session back to the earlier topic (-r can be used as a shortform)
+gen -r 1 # switch the active session back to the earlier topic (-r is the shortform of --restore)
 
-gen "include file permissions in the output" # ask a follow up question relying on context from the restored session
-# >> to include file permissions in the directory listing output... (response ommitted for brevity)
+gen "was this a major or minor release?" # ask a follow up question relying on context from the restored session
+# >> It was a minor release. Go follows a versioning scheme that.... (response ommitted for brevity)
 
-gen --new --files ./main.go "summarise this code for me" # attach a file to the prompt and ask a question related to its contents (-f can be used as a shortform for --files)
-# >> This file contains badly organised and incomprehensible code, even to an LLM... (response ommitted for brevity)
+gen -n -f ./main.go "summarise this code for me" # attach a file to the prompt and ask a question related to its contents (-f is the  shortform of --files)
+# >> This is a Go program, named 'gen'. It functions as a command-line interface for interacting.... (response ommitted for brevity)
 
-gen --new --exec "list all .go files in my current directory" # directly execute and interpret terminal commands to perform tasks (-x can be used as a shortform for --exec)
+gen -n -x "list all .go files in my current directory" # directly execute and interpret terminal commands to perform tasks (-x is the shortform of --exec)
 # >> executing... [ls -l *.go]
-# >> -rw-rw-r-- 1 me me 3535 Jun 14 22:48 main.go
+# >> main.go
 
-gen --exec "copy the files to a directory named 'backup'" # execute a follow up task using the previous task for context
+gen -x "copy the files to a directory named 'backup'" # execute a follow up task using the previous task for context
 # >> executing... [mkdir -p backup; cp *.go backup/]
 # >> OK
 
-gen --new --exec "write the contents returned from github's home page to a file named github.html" # access and parse external resources 
+gen -n -x "write the contents returned from github's home page to a file named github.html" # access and parse external resources 
 # >> executing... [curl https://github.com > github.html]
 # >> OK
+
+gen -n -x "get the pids, names and cpu and mem usage of the top 5 processes running by cpu. format this in markdown as a table" # query the host system for performance metrics
+# >> executing... [ps -eo pid,cmd,%cpu,%mem --sort=-%cpu | head -n 6]
+# >> 
+# >> | PID | CMD | %CPU | %MEM |
+# >> |---|---|---|---|
+# >> | 1331 | /home/me/process/job1 | 6.2 | 5.6 |
+# >> | 6911 | /home/me/process/code | 1.4 | 0.6 |
+# >> | 519 | /home/me/process/job2 | 1.1 | 0.7 |
+# >> | 1420 | /home/me/process/task1 | 0.6 | 2.7 |
+# >> | 2058 | /home/me/process/job3 | 0.5 | 0.4 |
+
+gen -n -x -pro "perform a code review on the main.go file" # use the 'pro' model to handle more complex tasks
+# >> This is a solid, well-written `main.go` file for a command-line application. It demonstrates good Go programming... (response ommitted for brevity)
 ```
 
 ### Scripting
 
 #### Structured Responses
 
-The following example describes how to use `gen` to perform a basic code review of a given file and return the result in a specific, consistent `json` format.
+The following example describes how to use `gen` to perform a basic code review of a given file and return the result in a specific, consistent `json` format. Making it suitable for use in automation.
 
 For clarity, note that the below command...
 
 ```bash
 # start a new gen session in --script mode (supresses output, -q can also be used). include the --files (main.go, -f can also be used) in the prompt and specify a --schema for the response (-s can also be used)
-gen --new --script --files ./main.go --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file"
+gen --new --script --pro --files ./main.go --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file"
 ```
 
 ... will result in the following...
 
 ```json
 {
-  "quality": 5,
-  "reason": "This file contains badly organised and incomprehensible code, even to an LLM. Complete gibberish"
+  "quality": 1,
+  "reason": "The code is excellent. It is well-structured with clear separation of concerns into distinct packages (cli, gemini, log, schema, session). Error handling is robust and consistent, using a custom `log.FatalfIf` helper and a panic handler. Configuration is managed cleanly by populating a `Config` struct from parsed arguments. The logic is straightforward and easy to follow for a command-line application."
 }
 ```
 
@@ -173,12 +187,15 @@ Given this understanding, the script below demonstrates how this data can be use
 
 ```bash
 # perform the 'code review' and store the JSON response in a variable
-JSON=$(gen -n -q -f ./main.go --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file")
+JSON=$(gen -n -q -f ./main.go --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file")  
+
 # parse the JSON into an array containing either the 'suggested improvements' or 'ok' and the associated exit code based on whether it was an 'ok' result or it required revising
 # - eg '[ 'ok', 0 ] or '[ 'horrific stuff, unreadable...', 1 ]
-RESULT=$(echo "$JSON" | jq -r 'if .quality > 2 then [.reason, 1] else ["ok", 0] end')
+RESULT=$(echo "$JSON" | jq -r 'if .quality > 2 then [.reason, 1] else ["ok", 0] end')  
+
 # print either 'ok' or the suggested improvements
-echo "$RESULT" | jq -r '.[0]' 
+echo "$RESULT" | jq -r '.[0]'   
+
 # exit with a return code derived from whether the minimum required quality was met
 exit "$(echo "$RESULT" | jq -r '.[1]')" 
 ```
@@ -217,7 +234,7 @@ esac
 
 When executed, the above will cause `gen` to silently perform all the tasks and the subsequent part of the script will then print an appropriate response based on `gen's` return code. In the prompt used, the `exit code` to indicate code review failure was set as `2`; this is optional and purely to allow the two causes of failure to be distinguished in the script.
 
-## Usage
+## Usage 
 
 ### Prompting
 
@@ -226,14 +243,11 @@ To chat with `gen`, execute it with a prompt
 ```bash
 gen "how do I list all files in my current directory?"
 ```
-
 The result of the prompt will be displayed, as shown below.
 
 ```
 To list all files in your current directory, you can use the following command in your terminal:
-
 ls -a
-
 This command will display all files, including hidden files (files starting with a dot).
 ```
 
@@ -246,25 +260,13 @@ gen "I need timestamps in the output"
 This will return something similar to the below, note how `gen` understood the context of the question in relation to the previous prompt. 
 
 ```
-To include timestamps in the output of the `ls` command, you can use the `-l` option along with the `--full-time` or `--time-style` options. Here are a few options:
-
-1.  `ls -l`: This will show the modification time of the files.
-
-2.  `ls -l --full-time`: This will display the complete time information, including month, day, hour, minute, second, and year. It also includes nanoseconds.
-
-3.  `ls -l --time-style=long-iso`:  This option displays the timestamp in ISO 8601 format (YYYY-MM-DD HH:MM:SS).
-
-4.  `ls -l --time-style=full-iso`: This is similar to `long-iso` but includes nanoseconds.
-
-For example:
-
-ls -la --full-time
+To include timestamps in the output of the `ls` command, you can use the `-l` option along with the `--full-time` or `--time-style` options
 ```
 
 This conversational context will continue indefinitely until you start a new session. Starting a new session `stashes` the existing conversational context and begins a new one. It is performed by passing the `--new` (or `-n`) flag in your next prompt. As shown below
 
 ```bash
-gen --new "what was my last question?"
+gen -n "what was my last question?"
 ```
 
 This will return something similar to the below, indicating the loss of the previous context.
@@ -292,7 +294,7 @@ gen -n "how would I list all files in my home directory, including hidden ones, 
 # >>    find ~ -maxdepth 1 -type f -mtime -1
 
 # switch to exec mode by passing --exec flag for the next prompt and use the previous context to infer the action gen is take
-gen --exec "ok, execute that for me and print the results"
+gen -x "ok, execute that for me and print the results"
 # >> executing... [find ~ -mtime -1]
 # >> 
 # >> 40344544     56 -rw-------   1 me     me        54416 Jun 12 00:08 /home/me/.bash_history
@@ -309,6 +311,7 @@ gen -n -x "what kind of license is associated with this repo? can I use it in co
 # >> - [truncated for brevity]
 # >> In summary: Yes, you can use it in commercial software, but [truncated for brevity]
 ```
+
 ### Session Management
 
 A session is a thread of prompts and responses with the same context, effectively a conversation. A new session starts whenever `--new` (or `-n`) is passed along with the prompt to `gen`. At this point, the previously active session is `stashed` and the passed prompt becomes the start of a new session.
@@ -316,7 +319,7 @@ A session is a thread of prompts and responses with the same context, effectivel
 To view your previously `stashed` sessions, run `gen --list` (or `-l`). The sessions will be displayed in date order and include a snippet of the opening text of the prompt for ease of identification. The active session is also included in the output and prefixed with an asterix, in this case record `2`.
 
 ```bash
-gen --list
+gen -l
   #1 (April 15 2025): 'how do i list all files in my current directory?'
 * #2 (April 15 2025): 'what was my last question?'
 ```
@@ -324,13 +327,13 @@ gen --list
 To restore a previous session, allowing you to continue that conversation as it was where you left off, run `gen --restore #id` (or `-r`) where `#id` is the `#ID` in the `gen --list` output. For example
 
 ```bash
-gen --restore 1
+gen --r 1
 ```
 
-Running `gen --list` again will now show the below; note how the asterix is now positioned at record `1`
+Running `gen -l` again will now show the below; note how the asterix is now positioned at record `1`
 
 ```bash
-gen --list
+gen -l
 * #1 (April 15 2025): 'how do i list all files in my current directory?'
   #2 (April 15 2025): 'what was my last question?'
 ```
@@ -383,6 +386,29 @@ Users of the shell can then just run `gen` directly and implicitly use the custo
 ```bash
 gen -n "in what context are we operating?"
 # >> We are operating within the integrated terminal of VS Code on your development machine. My role is to function as a Linux terminal-based assistant for you, a Go/Linux developer at Global-Mega-Corp.... [truncated for brevity]
+```
+
+##### Configuring Multiple Modes
+
+By making further use of `aliases`, `gen` can be pre-configured for use in different `modes`. 
+
+In the example below, two modes are configured, `architect` and `chat`
+
+```bash
+# create an architecture "mode"
+alias gen-arc='gen --use-case "you are a wise and beardy architect with expertise in gcp, k8s, linux and go" --pro --temperature 0.1'  
+
+# create an general chat "mode"
+alias gen-chat='gen --use-case "you are a helpful technical assistant" --temperature 0.3'  
+```
+Users of the shell can then just run `gen-arc` or `gen-chat` directly and access `gen` in that specific `mode`. As shown below.
+
+```bash
+gen-arc "design me a facebook, give me the result as a mermaid chart" # ask an architecture question
+# >> a design for a facebook-like system would... (response ommitted for brevity)
+
+gen-chat -n "what features were added in go 1.24?" # ask a general question
+# >> Go 1.24 introduced several new features and enhancements across the... (response ommitted for brevity)
 ```
 
 ### Attaching Files
