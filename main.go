@@ -31,7 +31,7 @@ func main() {
 
 	log.Init(args.Debug(), cli.WriteError)
 
-	log.FatalfIf(args.Script() && args.CommandApproval(), "command approval cannot be enabled in script mode")
+	log.FatalfIf(args.Script() && args.ExecutionApproval(), "command approval cannot be enabled in script mode")
 
 	apiCredential := args.VertexAccessToken()
 
@@ -81,30 +81,30 @@ func main() {
 	schema, err := schema.Build(args.SchemaDefinition())
 	log.FatalfIf(err != nil, "invalid schema definition. %v", err)
 
-	files := []string{}
+	filePaths := []string{}
 	{
-		if filePattern := args.Files(); filePattern != "" {
-			files = strings.Split(filePattern, ",")
-			for i := range files {
-				files[i] = strings.TrimSpace(files[i])
+		if filePattern := args.FilePaths(); filePattern != "" {
+			filePaths = strings.Split(filePattern, ",")
+			for i := range filePaths {
+				filePaths[i] = strings.TrimSpace(filePaths[i])
 			}
 		}
 	}
 
 	cli.Generate(gemini.Config{
-		GeminiURL:        *args.CustomURL,
-		Credential:       apiCredential,
-		GCPProject:       args.GCPProject(),
-		GCSBucket:        args.GCSBucket(),
-		Model:            model,
-		FileStorageURL:   *args.CustomUploadURL,
-		SystemPrompt:     *args.SystemPrompt,
-		MaxTokens:        *args.MaxTokens,
-		Temperature:      *args.Temperature,
-		TopP:             *args.TopP,
-		Grounding:        !*args.DisableGrounding,
-		UseCase:          *args.UseCase,
-		CommandExecution: args.CommandExecution(),
-		CommandApproval:  args.CommandApproval(),
-	}, args, args.Script(), promptText, schema, files)
+		GeminiURL:         *args.CustomURL,
+		Credential:        apiCredential,
+		GCPProject:        args.GCPProject(),
+		GCSBucket:         args.GCSBucket(),
+		Model:             model,
+		FileStorageURL:    *args.CustomUploadURL,
+		SystemPrompt:      *args.SystemPrompt,
+		MaxTokens:         *args.MaxTokens,
+		Temperature:       *args.Temperature,
+		TopP:              *args.TopP,
+		Grounding:         !*args.DisableGrounding,
+		UseCase:           *args.UseCase,
+		ExecutionEnabled:  args.ExecutionEnabled(),
+		ExecutionApproval: args.ExecutionApproval(),
+	}, args, args.Script(), promptText, schema, filePaths)
 }

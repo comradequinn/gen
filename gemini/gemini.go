@@ -30,14 +30,13 @@ var (
 )
 
 const (
-	InputTypeUser    = "user"
-	InputTypeCommand = "command"
+	InputTypeUser     = "user"
+	InputTypeFunction = "function"
 )
 
 const (
 	RoleUser  = "user"
 	RoleModel = "model"
-	RoleTool  = "tool"
 )
 
 // Generate queries the Gemini API with the specified prompt and returns the result
@@ -48,7 +47,7 @@ func Generate(cfg Config, prompt Prompt) (Transaction, error) {
 		return Transaction{}, fmt.Errorf("invalid configuration. %w", err)
 	}
 
-	contents := historyFrom(prompt)
+	contents := addHistory(prompt.History)
 
 	var (
 		part                schema.Part
@@ -63,11 +62,14 @@ func Generate(cfg Config, prompt Prompt) (Transaction, error) {
 	case prompt.InputType == InputTypeUser:
 		part = schema.Part{Text: prompt.Text}
 		role = RoleUser
-	case prompt.CommandResult.Executed:
-		part = schema.Part{FunctionResponse: prompt.CommandResult.marshalJSON()}
+	case prompt.ExecuteResult.Executed:
+		part = schema.Part{FunctionResponse: prompt.ExecuteResult.marshalJSON()}
 		role = RoleUser
-	case prompt.FilesRequestResult.Attached:
-		part = schema.Part{FunctionResponse: prompt.FilesRequestResult.marshalJSON()}
+	case prompt.ReadResult.FilesAttached:
+		part = schema.Part{FunctionResponse: prompt.ReadResult.marshalJSON()}
+		role = RoleUser
+	case prompt.WriteResult.Written:
+		part = schema.Part{FunctionResponse: prompt.WriteResult.marshalJSON()}
 		role = RoleUser
 	}
 
@@ -88,12 +90,12 @@ func Generate(cfg Config, prompt Prompt) (Transaction, error) {
 		panic(fmt.Sprintf("unsupported api platform %v", cfg.platform()))
 	}
 
-	if len(prompt.Files) > 0 {
+	if len(prompt.FilePaths) > 0 {
 		if resourceRefs, err = resource.Upload(resource.BatchUploadRequest{
 			URL:        cfg.FileStorageURL,
 			Credential: cfg.Credential,
 			UploadFunc: resourceUploadFunc,
-			Files:      prompt.Files,
+			Files:      prompt.FilePaths,
 		}); err != nil {
 			return Transaction{}, err
 		}
@@ -111,8 +113,8 @@ func Generate(cfg Config, prompt Prompt) (Transaction, error) {
 		tools = append(tools, googleSearchTool{}.marshalJSON())
 	}
 
-	if cfg.CommandExecution {
-		tools = append(tools, commandExecutionTool{}.marshalJSON())
+	if cfg.ExecutionEnabled {
+		tools = append(tools, executeTool{}.marshalJSON())
 	}
 
 	generationConfig := schema.GenerationConfig{
@@ -133,21 +135,25 @@ func Generate(cfg Config, prompt Prompt) (Transaction, error) {
 		return Transaction{}, err
 	}
 
-	responseText, commandRequest, filesRequest := strings.Builder{}, CommandRequest{}, FilesRequest{}
+	responseText, commandRequest, readRequest, writeRequest := strings.Builder{}, ExecuteRequest{}, ReadRequest{}, WriteRequest{}
 
 	for _, part := range response.Candidates[0].Content.Parts {
 		if part.FunctionCall.Name != "" {
 			switch {
-			case part.FunctionCall.Name == (commandExecutionTool{}).ExecCmdFunctionName():
+			case part.FunctionCall.Name == (executeTool{}).ExecuteFunctionName():
 				if err := json.NewDecoder(bytes.NewReader(part.FunctionCall.Args)).Decode(&commandRequest); err != nil {
 					return Transaction{}, fmt.Errorf("unable to decode function call arguments for '%v' returned from gemini api. %w", part.FunctionCall.Name, err)
 				}
-			case part.FunctionCall.Name == (commandExecutionTool{}).RequestFilesFunctionName():
-				if err := json.NewDecoder(bytes.NewReader(part.FunctionCall.Args)).Decode(&filesRequest); err != nil {
+			case part.FunctionCall.Name == (executeTool{}).ReadFunctionName():
+				if err := json.NewDecoder(bytes.NewReader(part.FunctionCall.Args)).Decode(&readRequest); err != nil {
+					return Transaction{}, fmt.Errorf("unable to decode function call arguments for '%v' returned from gemini api. %w", part.FunctionCall.Name, err)
+				}
+			case part.FunctionCall.Name == (executeTool{}).WriteFunctionName():
+				if err := json.NewDecoder(bytes.NewReader(part.FunctionCall.Args)).Decode(&writeRequest); err != nil {
 					return Transaction{}, fmt.Errorf("unable to decode function call arguments for '%v' returned from gemini api. %w", part.FunctionCall.Name, err)
 				}
 			default:
-				return Transaction{}, fmt.Errorf("unexpected function call response returned from gemini api. zero or one function of types '%v' or '%v' expected. got %+v", (commandExecutionTool{}).ExecCmdFunctionName(), (commandExecutionTool{}).RequestFilesFunctionName(), part.FunctionCall)
+				return Transaction{}, fmt.Errorf("unexpected function call response returned from gemini api. zero or one function of types '%v' or '%v' expected. got %+v", (executeTool{}).ExecuteFunctionName(), (executeTool{}).ReadFunctionName(), part.FunctionCall)
 			}
 		}
 
@@ -171,13 +177,14 @@ func Generate(cfg Config, prompt Prompt) (Transaction, error) {
 		Input: Input{
 			Type:           prompt.InputType,
 			Text:           prompt.Text,
-			CommandResult:  prompt.CommandResult,
+			ExecuteResult:  prompt.ExecuteResult,
 			FileReferences: filesReferences,
 		},
 		Output: Output{
 			Text:           responseText.String(),
-			CommandRequest: commandRequest,
-			FilesRequest:   filesRequest,
+			ExecuteRequest: commandRequest,
+			ReadRequest:    readRequest,
+			WriteRequest:   writeRequest,
 		},
 	}
 

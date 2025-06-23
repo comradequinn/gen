@@ -10,7 +10,7 @@ import (
 	"github.com/comradequinn/gen/session"
 )
 
-func Generate(cfg gemini.Config, args Args, scriptMode bool, promptText, schema string, files []string) {
+func Generate(cfg gemini.Config, args Args, scriptMode bool, promptText, schema string, filePaths []string) {
 	var err error
 
 	generate := func(prompt gemini.Prompt) gemini.Transaction {
@@ -40,7 +40,7 @@ func Generate(cfg gemini.Config, args Args, scriptMode bool, promptText, schema 
 					"promptBytes":       fmt.Sprintf("%v", len(prompt.Text)),
 					"responseBytes":     fmt.Sprintf("%v", len(transaction.Output.Text)),
 					"tokens":            fmt.Sprintf("%v", transaction.Tokens),
-					"files":             fmt.Sprintf("%v", len(transaction.Input.FileReferences)),
+					"filesStored":       fmt.Sprintf("%v", len(transaction.Input.FileReferences)),
 					"functionCall":      fmt.Sprintf("%v", transaction.Output.IsFunction()),
 				},
 			})
@@ -51,7 +51,7 @@ func Generate(cfg gemini.Config, args Args, scriptMode bool, promptText, schema 
 
 	prompt := gemini.Prompt{
 		Text:      promptText,
-		Files:     files,
+		FilePaths: filePaths,
 		InputType: gemini.InputTypeUser,
 		Schema:    gemini.JSONSchema(schema),
 	}
@@ -60,21 +60,24 @@ func Generate(cfg gemini.Config, args Args, scriptMode bool, promptText, schema 
 
 	for transaction.Output.IsFunction() {
 		prompt := gemini.Prompt{
-			InputType: gemini.InputTypeCommand,
+			InputType: gemini.InputTypeFunction,
 		}
 
 		switch {
-		case transaction.Output.IsCommandRequest():
-			if prompt.CommandResult, err = execute(transaction.Output, cfg, scriptMode); err != nil {
-				log.FatalfIf(err != nil, "error executing command '%v' on behalf of gemini. %v", transaction.Output.CommandRequest.Text, err)
+		case transaction.Output.IsExecuteRequest():
+			if prompt.ExecuteResult, err = execute(transaction.Output.ExecuteRequest, cfg, scriptMode); err != nil {
+				log.FatalfIf(err != nil, "error executing command '%v' on behalf of gemini. %v", transaction.Output.ExecuteRequest.Text, err)
 			}
-			if prompt.CommandResult.Code != 0 && scriptMode {
-				log.DebugPrintf(fmt.Sprintf("terminating with non-zero exit code as script/quiet mode was enabled when a command executed on behalf of gemini signalled the exit code %v", prompt.CommandResult.Code))
-				os.Exit(prompt.CommandResult.Code)
+			if prompt.ExecuteResult.Code != 0 && scriptMode {
+				log.DebugPrintf(fmt.Sprintf("terminating with non-zero exit code as script/quiet mode was enabled when a command executed on behalf of gemini signalled the exit code %v", prompt.ExecuteResult.Code))
+				os.Exit(prompt.ExecuteResult.Code)
 			}
-		case transaction.Output.IsFilesRequest():
-			prompt.Files = transaction.Output.FilesRequest.Files
-			prompt.FilesRequestResult = gemini.FilesRequestResult{Attached: true}
+		case transaction.Output.IsReadRequest():
+			prompt.FilePaths, prompt.ReadResult = readFiles(transaction.Output.ReadRequest, scriptMode)
+		case transaction.Output.IsWriteRequest():
+			if prompt.WriteResult, err = writeFiles(transaction.Output.WriteRequest, scriptMode); err != nil {
+				log.FatalfIf(err != nil, "error writing files on behalf of gemini. %v", err)
+			}
 		}
 
 		transaction = generate(prompt)

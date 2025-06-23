@@ -11,10 +11,10 @@
             "mode": "auto",
             "program": "${fileDirname}",
              "args": [
-                "--new",
-                "--debug",
-                "--exec",
-                "list all .go files in my current directory"
+                "-n",
+                "-v",
+                "-x",
+                "summarise the targets in my Makefile"
             ],
         }
     ]

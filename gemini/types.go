@@ -2,13 +2,14 @@ package gemini
 
 type (
 	Prompt struct {
-		History            []Transaction
-		InputType          InputType
-		Text               string
-		Files              []string
-		CommandResult      CommandResult
-		FilesRequestResult FilesRequestResult
-		Schema             JSONSchema
+		History       []Transaction
+		InputType     InputType
+		Text          string
+		FilePaths     []string
+		ExecuteResult ExecuteResult
+		ReadResult    ReadResult
+		WriteResult   WriteResult
+		Schema        JSONSchema
 	}
 	FileReference struct {
 		URI      string `json:"uri"`
@@ -24,37 +25,43 @@ type (
 	InputType  string
 	JSONSchema string
 	Input      struct {
-		Type               InputType          `json:"type"`
-		Text               string             `json:"text,omitempty,omitzero"`
-		FileReferences     []FileReference    `json:"files,omitempty,omitzero"`
-		CommandResult      CommandResult      `json:"commandResult,omitzero"`
-		FilesRequestResult FilesRequestResult `json:"filesRequestResponse,omitzero"`
+		Type               InputType       `json:"type"`
+		Text               string          `json:"text,omitempty,omitzero"`
+		FileReferences     []FileReference `json:"files,omitempty,omitzero"`
+		ExecuteResult      ExecuteResult   `json:"executeResult,omitzero"`
+		FilesRequestResult ReadResult      `json:"filesRequestResponse,omitzero"`
+		WriteFilesResult   WriteResult     `json:"writeFilesResult,omitzero"`
 	}
 	Output struct {
 		Text           string         `json:"text,omitempty,omitzero"`
-		CommandRequest CommandRequest `json:"commandRequest,omitempty,omitzero"`
-		FilesRequest   FilesRequest   `json:"filesRequest,omitempty,omitzero"`
+		ExecuteRequest ExecuteRequest `json:"executeRequest,omitempty,omitzero"`
+		ReadRequest    ReadRequest    `json:"readRequest,omitempty,omitzero"`
+		WriteRequest   WriteRequest   `json:"writeRequest,omitempty,omitzero"`
 	}
 
 	Platform int
 )
 
 func (o Output) IsFunction() bool {
-	return o.IsCommandRequest() || o.IsFilesRequest()
+	return o.IsExecuteRequest() || o.IsReadRequest() || o.IsWriteRequest()
 }
 
-func (o Output) IsCommandRequest() bool {
-	return o.CommandRequest.Text != ""
+func (o Output) IsExecuteRequest() bool {
+	return o.ExecuteRequest.Text != ""
 }
 
-func (o Output) IsFilesRequest() bool {
-	return len(o.FilesRequest.Files) > 0
+func (o Output) IsReadRequest() bool {
+	return len(o.ReadRequest.FilePaths) > 0
+}
+
+func (o Output) IsWriteRequest() bool {
+	return len(o.WriteRequest.Files) > 0
 }
 
 func (i Input) IsCommandResult() bool {
-	return i.CommandResult.Executed
+	return i.ExecuteResult.Executed
 }
 
 func (i Input) IsFilesRequestResult() bool {
-	return i.FilesRequestResult.Attached
+	return i.FilesRequestResult.FilesAttached
 }

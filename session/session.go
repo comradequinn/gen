@@ -89,7 +89,7 @@ func List(appDir string) ([]Record, error) {
 	files, err := os.ReadDir(sessionDir)
 
 	if err != nil {
-		return nil, fmt.Errorf("unable to read session directory. %v", err)
+		return nil, fmt.Errorf("unable to read session directory. %w", err)
 	}
 
 	summarise := func(f string) (string, error) {
@@ -104,7 +104,7 @@ func List(appDir string) ([]Record, error) {
 		transactions := []gemini.Transaction{}
 
 		if err := json.NewDecoder(sessionFile).Decode(&transactions); err != nil && err != io.EOF {
-			return "", fmt.Errorf("unable to decode session file. %v %v", sessionFile, err)
+			return "", fmt.Errorf("unable to decode session file. %v %w", sessionFile, err)
 		}
 
 		if len(transactions) == 0 {
@@ -130,13 +130,13 @@ func List(appDir string) ([]Record, error) {
 		summary, err := summarise(f.Name())
 
 		if err != nil {
-			return nil, fmt.Errorf("unable to summarise session file %v. %v", f.Name(), err)
+			return nil, fmt.Errorf("unable to summarise session file %v. %w", f.Name(), err)
 		}
 
 		info, err := f.Info()
 
 		if err != nil {
-			return nil, fmt.Errorf("unable to get timestamp for session file %v. %v", f.Name(), err)
+			return nil, fmt.Errorf("unable to get timestamp for session file %v. %w", f.Name(), err)
 		}
 
 		records = append(records, Record{

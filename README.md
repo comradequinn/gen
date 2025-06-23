@@ -43,7 +43,7 @@ To install `gen`, download the appropriate tarball for your `os` from the [relea
 Optionally, you can use the below script to do that for you
 
 ```bash
-export VERSION="v1.3.2"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
+export VERSION="v1.3.3"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
 ```
 
 ### Authentication
@@ -602,9 +602,9 @@ The weather will be very hot next week
 
 {
   "stats": {
-    "files": "0",
+    "filesStored": "0",
     "functionCall": "false",
-    "model": "gemini-2.5-flash-preview-05-20",
+    "model": "gemini-2.5-flash",
     "promptBytes": "45",
     "responseBytes": "1077",
     "systemPromptBytes": "761",
@@ -632,7 +632,7 @@ And the contents of `stats.txt` will be similar to the following.
   "stats": {
     "files": "0",
     "functionCall": "false",
-    "model": "gemini-2.5-flash-preview-05-20",
+    "model": "gemini-2.5-flash",
     "promptBytes": "45",
     "responseBytes": "1077",
     "systemPromptBytes": "761",

@@ -91,7 +91,7 @@ func Upload(batchUploadRequest BatchUploadRequest) ([]Reference, error) {
 			})
 
 			if err != nil {
-				responses <- response{err: fmt.Errorf("unable to upload file '%v' via file storage api. %v", f, err)}
+				responses <- response{err: fmt.Errorf("unable to upload file '%v' via file storage api. %w", f, err)}
 				return
 			}
 
@@ -137,7 +137,7 @@ func Upload(batchUploadRequest BatchUploadRequest) ([]Reference, error) {
 	<-responseWorkerDone // wait until the response processing routine ends
 
 	if err != nil {
-		return nil, fmt.Errorf("unable to upload files to storage provider. %v", err)
+		return nil, fmt.Errorf("unable to upload files to storage provider. %w", err)
 	}
 
 	return resourceRefs, nil

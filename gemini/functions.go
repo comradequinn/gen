@@ -6,26 +6,36 @@ import (
 )
 
 type (
-	CommandResult struct {
+	ExecuteResult struct {
 		Executed bool   `json:"executed"`
 		Code     int    `json:"code"`
 		Stderr   string `json:"stderr"`
 		Stdout   string `json:"stdout"`
 	}
-	FilesRequestResult struct {
-		Attached bool `json:"attached"`
+	ReadResult struct {
+		FilesAttached bool `json:"filesAttached"`
 	}
-	CommandRequest struct {
+	ExecuteRequest struct {
 		Text string `json:"text"`
 	}
-	FilesRequest struct {
-		Files []string `json:"files"`
+	ReadRequest struct {
+		FilePaths []string `json:"filePaths"`
+	}
+	WriteRequest struct {
+		Files []File `json:"files"`
+	}
+	File struct {
+		Name string `json:"name"`
+		Data string `json:"data"`
+	}
+	WriteResult struct {
+		Written bool `json:"written"`
 	}
 )
 
 type (
-	commandExecutionTool struct{}
-	googleSearchTool     struct{}
+	executeTool      struct{}
+	googleSearchTool struct{}
 )
 
 func (c googleSearchTool) marshalJSON() json.RawMessage {
@@ -34,16 +44,20 @@ func (c googleSearchTool) marshalJSON() json.RawMessage {
     }`)
 }
 
-func (c commandExecutionTool) ExecCmdFunctionName() string {
-	return "execute-command"
+func (c executeTool) ExecuteFunctionName() string {
+	return "execute"
 }
 
-func (c commandExecutionTool) RequestFilesFunctionName() string {
-	return "request-files"
+func (c executeTool) ReadFunctionName() string {
+	return "read"
 }
 
-func (c commandExecutionTool) marshalJSON() json.RawMessage {
-	cmdExecFunctionDesc := fmt.Sprintf("executes a command on the user's machine. it runs as the user and you can consider it equivalent to you having access to their terminal. this command is primarily to be used to perform local "+
+func (c executeTool) WriteFunctionName() string {
+	return "write"
+}
+
+func (c executeTool) marshalJSON() json.RawMessage {
+	executeFunctionDesc := fmt.Sprintf("executes a command on the user's machine. it runs as the user and you can consider it equivalent to you having access to their terminal. this command is primarily to be used to perform local "+
 		"operations, such as querying or interacting with the file system or a local git repo. however, you may also use curl, wget and similar commands, if the user has explicitly asked you to do so, or it is implicit in the nature of their "+
 		"request, such as a file download, api or web access. "+
 		""+
@@ -71,10 +85,14 @@ func (c commandExecutionTool) marshalJSON() json.RawMessage {
 		"and absolutely nothing else, that way it can be piped into another command. finally, if the return code is not 0 (error) respond only with the word 'Error' followed by any data in stderr. "+
 		""+
 		"in the event the user's instructions require you to terminate the process with a particular exit code, the exact command required for that is simply 'exit {code}'. do not try to kill other processes or the terminal, "+
-		"just exit the current one using that command", c.RequestFilesFunctionName())
-	uploadFilesFunctionDesc := fmt.Sprintf("provides the content of all the files in the user's file system that are listed in the 'files' arguments. this is to be used in support of the '%v' as a more efficient "+
-		"alternative to accessing file contents by directly executing a shell command. use this function instead of executing 'cat file', for example. you can also use it upload data you have generated yourself "+
-		"more efficiently. for example if the user requests a command be executed, you could redirect the output to a file, then request that file using this function, then delete it after", c.ExecCmdFunctionName())
+		"just exit the current one using that command", c.ReadFunctionName())
+	readFunctionDesc := fmt.Sprintf("provides the content of all the files in the user's file system that are listed in the 'filePaths' arguments. this is to be used in support of the '%v' function as a more efficient "+
+		"alternative to accessing file contents by directly executing a command. use this function instead of executing 'cat file', for example. you can also use it upload data you have generated yourself "+
+		"more efficiently. for example if the user requests a command be executed, you could redirect the output to a file, then request that file using this function, then delete it after with a separate follow up command", c.ExecuteFunctionName())
+	writeFunctionDesc := fmt.Sprintf("writes files to the users files system as specified in the files argument. this is to be used in support of the '%v' function as a more efficient "+
+		"and effective alternative to writing or modifying file contents by directly executing commands. for example, you could use this function instead of executing the command 'echo data > file.txt' or to avoid defining commands "+
+		"with complex transforms, using sed, grep and similar, to apply your required edits to files. Instead, just use this function to state what the exact contents of files should be. You can still use commands if that approach would be "+
+		"simpler, but for large files or complex edits, this function may be preferable", c.ExecuteFunctionName())
 	return json.RawMessage(fmt.Sprintf(`{
       "functionDeclarations": [
 		{ 
@@ -93,16 +111,40 @@ func (c commandExecutionTool) marshalJSON() json.RawMessage {
 			"parameters": { 
 				"type": "object", 
 				"properties": { 
-					"files":  { "type": "array", "items": { "type": "string" }, "description": "the files to upload. each file should specified using its relative path" } 
+					"filePaths":  { "type": "array", "items": { "type": "string" }, "description": "the files to upload from the user's filesystem. each file should specified using its relative path" } 
+				} 
+			} 
+		},
+		{ 
+			"name": "%v",
+			"description": "%v", 
+			"parameters": { 
+				"type": "object", 
+				"properties": { 
+					"files":  { "type": "array", "items": 
+						{ 
+							"type": "object", 
+						 	"properties": { 
+								"name": { 
+									"type": "string", 
+									"description": "the path of the file to write. for example '.data/myfile.txt' or './myfile.txt'" 
+								},
+								"data": { 
+									"type": "string", 
+									"description": "the full content of the file" 
+								}
+							} 
+						}, "description": "the files to write to the user's file system" 
+					} 
 				} 
 			} 
 		}
-	]}`, c.ExecCmdFunctionName(), cmdExecFunctionDesc, c.RequestFilesFunctionName(), uploadFilesFunctionDesc))
+	]}`, c.ExecuteFunctionName(), executeFunctionDesc, c.ReadFunctionName(), readFunctionDesc, c.WriteFunctionName(), writeFunctionDesc))
 }
 
-func (c CommandResult) marshalJSON() json.RawMessage {
+func (c ExecuteResult) marshalJSON() json.RawMessage {
 	j, _ := json.Marshal(map[string]any{
-		"name": (commandExecutionTool{}).ExecCmdFunctionName(),
+		"name": (executeTool{}).ExecuteFunctionName(),
 		"response": map[string]any{
 			"returnCode": c.Code,
 			"stdErr":     c.Stderr,
@@ -113,25 +155,39 @@ func (c CommandResult) marshalJSON() json.RawMessage {
 	return j
 }
 
-func (c FilesRequestResult) marshalJSON() json.RawMessage {
+func (r ReadResult) marshalJSON() json.RawMessage {
 	j, _ := json.Marshal(map[string]any{
-		"name": (commandExecutionTool{}).RequestFilesFunctionName(),
+		"name": (executeTool{}).ReadFunctionName(),
 		"response": map[string]any{
-			"attached": c.Attached,
+			"attached": r.FilesAttached,
 		},
 	})
 
 	return j
 }
 
-func (c CommandRequest) marshalJSON() json.RawMessage {
-	j, _ := json.Marshal(c)
+func (r WriteResult) marshalJSON() json.RawMessage {
+	j, _ := json.Marshal(map[string]any{
+		"name": (executeTool{}).WriteFunctionName(),
+		"response": map[string]any{
+			"completed": r.Written,
+		},
+	})
 
 	return j
 }
 
-func (f FilesRequest) marshalJSON() json.RawMessage {
-	j, _ := json.Marshal(f)
+func (c ExecuteRequest) marshalJSON() json.RawMessage {
+	j, _ := json.Marshal(c)
+	return j
+}
 
+func (r ReadRequest) marshalJSON() json.RawMessage {
+	j, _ := json.Marshal(r)
+	return j
+}
+
+func (w WriteRequest) marshalJSON() json.RawMessage {
+	j, _ := json.Marshal(w)
 	return j
 }

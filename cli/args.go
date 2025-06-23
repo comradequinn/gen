@@ -11,7 +11,7 @@ import (
 // Args defines all command line arguments
 type Args struct {
 	script, scriptShort                       *bool
-	files, filesShort                         *string
+	filePaths, filePathsShort                 *string
 	newSession, newSessionShort               *bool
 	listSessions, listSessionsShort           *bool
 	restoreSession, restoreSessionShort       *int
@@ -20,8 +20,8 @@ type Args struct {
 	gcpProject, gcpProjectShort               *string
 	gcsBucket, gcsBucketShort                 *string
 	schemaDefinition, schemaDefinitionShort   *string
-	commandExecution, commandExecutionShort   *bool
-	commandApproval, commandApprovalShort     *bool
+	executionEnabled, executionEnabledShort   *bool
+	executionApproval, executionApprovalShort *bool
 	debug, debugShort                         *bool
 	CustomURL                                 *string
 	CustomUploadURL                           *string
@@ -44,7 +44,7 @@ func ReadArgs(homeDir, app, proModel string) Args {
 
 	args.Version = flag.Bool("version", false, "print the version")
 	args.script, args.scriptShort = flagDef(flag.Bool, "script", "q", "quiet the output. supress activity indicators, such as spinners, to better support piping stdout into other utils when scripting", false)
-	args.files, args.filesShort = flagDef(flag.String, "files", "f", "a comma separated list of files to attach to the prompt", "")
+	args.filePaths, args.filePathsShort = flagDef(flag.String, "files", "f", "a comma separated list of files to attach to the prompt", "")
 	args.newSession, args.newSessionShort = flagDef(flag.Bool, "new", "n", "save any existing session and start a new one", false)
 	args.listSessions, args.listSessionsShort = flagDef(flag.Bool, "list", "l", "list all sessions by id", false)
 	args.restoreSession, args.restoreSessionShort = flagDef(flag.Int, "restore", "r", "the session id to restore", 0)
@@ -68,10 +68,10 @@ func ReadArgs(homeDir, app, proModel string) Args {
 
 	args.gcsBucket, args.gcsBucketShort = flagDef(flag.String, "gcs-bucket", "b", "the cloud storage (gcp) bucket to upload files to when using the gemini api via a vertex-ai (gcp) endpoint", "")
 
-	args.commandExecution, args.commandExecutionShort = flagDef(flag.Bool, "exec", "x", fmt.Sprintf("whether to enable command execution. when enabled prompts should relate to interacting with the local host environment "+
+	args.executionEnabled, args.executionEnabledShort = flagDef(flag.Bool, "exec", "x", fmt.Sprintf("whether to enable command execution. when enabled prompts should relate to interacting with the local host environment "+
 		"in some form. responses will typically result in %v executing commands on behalf of the gemini api", app), false)
 
-	args.commandApproval, args.commandApprovalShort = flagDef(flag.Bool, "approve", "k", "whether to prompt for review and approval before executing commands on behalf of the gemini api", false)
+	args.executionApproval, args.executionApprovalShort = flagDef(flag.Bool, "approve", "k", "whether to prompt for review and approval before executing commands on behalf of the gemini api", false)
 
 	args.schemaDefinition, args.schemaDefinitionShort = flagDef(flag.String, "schema", "s", "a schema that defines the required response format. either in the form 'field1:field1-type:field1-description|field2:field2-type:field2-description|...n' or "+
 		"as a json-form open-api schema. grounding with search must be disabled to use a schema", "")
@@ -84,8 +84,8 @@ func ReadArgs(homeDir, app, proModel string) Args {
 	args.CustomModel = flag.String("model", "", "the specific model to use")
 	args.ProModel = flag.Bool("pro", false, fmt.Sprintf("use the thinking %v model", proModel))
 	args.MaxTokens = flag.Int("max-tokens", 65536, "the maximum number of tokens to allow in a response")
-	args.Temperature = flag.Float64("temperature", 0.1, "the temperature setting for the model")
-	args.TopP = flag.Float64("top-p", 0.1, "the top-p setting for the model")
+	args.Temperature = flag.Float64("temperature", 0, "the temperature setting for the model")
+	args.TopP = flag.Float64("top-p", 0, "the top-p setting for the model")
 
 	args.SystemPrompt = flag.String("system-prompt",
 		fmt.Sprintf("You are a command line utility named '%v' running in a terminal on the OS '%v' with a locale set to '%v'. Factor that into the format and content of your responses and always ensure they are concise and "+
@@ -106,8 +106,8 @@ func (args Args) Script() bool {
 	return readFlag("script/q", args.script, args.scriptShort)
 }
 
-func (args Args) Files() string {
-	return readFlag("files/f", args.files, args.filesShort)
+func (args Args) FilePaths() string {
+	return readFlag("files/f", args.filePaths, args.filePathsShort)
 }
 
 func (args Args) NewSession() bool {
@@ -138,12 +138,12 @@ func (args Args) GCSBucket() string {
 	return readFlag("gcs-bucket/b", args.gcsBucket, args.gcsBucketShort)
 }
 
-func (args Args) CommandExecution() bool {
-	return readFlag("exec/x", args.commandExecution, args.commandExecutionShort)
+func (args Args) ExecutionEnabled() bool {
+	return readFlag("exec/x", args.executionEnabled, args.executionEnabledShort)
 }
 
-func (args Args) CommandApproval() bool {
-	return readFlag("approve/k", args.commandApproval, args.commandApprovalShort)
+func (args Args) ExecutionApproval() bool {
+	return readFlag("approve/k", args.executionApproval, args.executionApprovalShort)
 }
 
 func (args Args) SchemaDefinition() string {

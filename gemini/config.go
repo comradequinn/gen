@@ -7,20 +7,20 @@ import (
 
 type (
 	Config struct {
-		GeminiURL        string
-		FileStorageURL   string
-		Credential       string
-		GCPProject       string
-		GCSBucket        string
-		Model            string
-		SystemPrompt     string
-		MaxTokens        int
-		Temperature      float64
-		TopP             float64
-		UseCase          string
-		Grounding        bool
-		CommandExecution bool
-		CommandApproval  bool
+		GeminiURL         string
+		FileStorageURL    string
+		Credential        string
+		GCPProject        string
+		GCSBucket         string
+		Model             string
+		SystemPrompt      string
+		MaxTokens         int
+		Temperature       float64
+		TopP              float64
+		UseCase           string
+		Grounding         bool
+		ExecutionEnabled  bool
+		ExecutionApproval bool
 	}
 )
 
@@ -37,15 +37,15 @@ func (cfg Config) withDefaults(prompt Prompt) (Config, error) {
 		return cfg, fmt.Errorf("invalid configuration. maxtokens must be specified")
 	}
 
-	if prompt.Schema != "" && cfg.CommandExecution {
-		return cfg, fmt.Errorf("invalid prompt or configuration. a response schema cannot be specified when command-execution is enabled")
+	if prompt.Schema != "" && cfg.ExecutionEnabled {
+		return cfg, fmt.Errorf("invalid prompt or configuration. a response schema cannot be specified when execution is enabled")
 	}
 
 	if (cfg.GCPProject != "" || cfg.GCSBucket != "") && (cfg.GCPProject == "" || cfg.GCSBucket == "") {
 		return cfg, fmt.Errorf("to use the gemini api via vertex-ai a gcp-project, gcs-bucket and vertex-access-token must be provided")
 	}
 
-	if (prompt.Schema != "" || cfg.CommandExecution) && cfg.Grounding {
+	if (prompt.Schema != "" || cfg.ExecutionEnabled) && cfg.Grounding {
 		cfg.Grounding = false
 	}
 

@@ -125,7 +125,7 @@ func TestGenerate(t *testing.T) {
 				},
 			},
 		},
-		Files: []string{
+		FilePaths: []string{
 			"test-file-1",
 		},
 	}

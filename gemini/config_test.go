@@ -71,17 +71,17 @@ func TestConfig_withdefaults(t *testing.T) {
 			wantErrMsg: "invalid configuration. maxtokens must be specified",
 		},
 		{
-			name: "invalid config - schema with commandexecution",
+			name: "invalid config - schema with execution",
 			cfg: Config{
 				MaxTokens:        100,
 				Temperature:      0.7,
-				CommandExecution: true,
+				ExecutionEnabled: true,
 			},
 			prompt: Prompt{
 				Schema: "some-schema",
 			},
 			wantErr:    true,
-			wantErrMsg: "invalid prompt or configuration. a response schema cannot be specified when command-execution is enabled",
+			wantErrMsg: "invalid prompt or configuration. a response schema cannot be specified when execution is enabled",
 		},
 		{
 			name: "invalid config - gcpproject without gcsbucket",
@@ -122,17 +122,17 @@ func TestConfig_withdefaults(t *testing.T) {
 			},
 		},
 		{
-			name: "grounding disabled - with commandexecution",
+			name: "grounding disabled - with execution",
 			cfg: Config{
 				MaxTokens:        100,
 				Temperature:      0.7,
 				Grounding:        true,
-				CommandExecution: true,
+				ExecutionEnabled: true,
 			},
 			prompt: basePrompt,
 			validate: func(t *testing.T, cfg Config, originalCfg Config) {
 				if cfg.Grounding {
-					t.Error("expected grounding to be false when commandexecution is true, got true")
+					t.Error("expected grounding to be false when execution is true, got true")
 				}
 			},
 		},

@@ -2,17 +2,17 @@ package gemini
 
 import "github.com/comradequinn/gen/gemini/internal/schema"
 
-func historyFrom(prompt Prompt) []schema.Content {
-	contents := make([]schema.Content, 0, len(prompt.History)+1)
+func addHistory(transactions []Transaction) []schema.Content {
+	contents := make([]schema.Content, 0, len(transactions)+1)
 
-	for _, transaction := range prompt.History {
+	for _, transaction := range transactions {
 		content := schema.Content{
 			Role: RoleUser,
 		}
 
 		switch {
 		case transaction.Input.IsCommandResult():
-			content.Parts = append(content.Parts, schema.Part{FunctionResponse: transaction.Input.CommandResult.marshalJSON()})
+			content.Parts = append(content.Parts, schema.Part{FunctionResponse: transaction.Input.ExecuteResult.marshalJSON()})
 		case transaction.Input.IsFilesRequestResult():
 			content.Parts = append(content.Parts, schema.Part{FunctionResponse: transaction.Input.FilesRequestResult.marshalJSON()})
 		default:
@@ -39,17 +39,24 @@ func historyFrom(prompt Prompt) []schema.Content {
 			content.Parts = append(content.Parts, schema.Part{Text: transaction.Output.Text})
 		}
 
-		if transaction.Output.IsCommandRequest() {
+		if transaction.Output.IsExecuteRequest() {
 			content.Parts = append(content.Parts, schema.Part{FunctionCall: schema.FunctionCall{
-				Name: (commandExecutionTool{}).ExecCmdFunctionName(),
-				Args: transaction.Output.CommandRequest.marshalJSON(),
+				Name: (executeTool{}).ExecuteFunctionName(),
+				Args: transaction.Output.ExecuteRequest.marshalJSON(),
 			}})
 		}
 
-		if transaction.Output.IsFilesRequest() {
+		if transaction.Output.IsReadRequest() {
 			content.Parts = append(content.Parts, schema.Part{FunctionCall: schema.FunctionCall{
-				Name: (commandExecutionTool{}).RequestFilesFunctionName(),
-				Args: transaction.Output.FilesRequest.marshalJSON(),
+				Name: (executeTool{}).ReadFunctionName(),
+				Args: transaction.Output.ReadRequest.marshalJSON(),
+			}})
+		}
+
+		if transaction.Output.IsWriteRequest() {
+			content.Parts = append(content.Parts, schema.Part{FunctionCall: schema.FunctionCall{
+				Name: (executeTool{}).WriteFunctionName(),
+				Args: transaction.Output.WriteRequest.marshalJSON(),
 			}})
 		}
 
