@@ -16,7 +16,7 @@ test:
 install: build
 	@sudo cp ${BIN}/${NAME} /usr/local/bin/${NAME}
 
-VERTEX_AUTH= --vertex-access-token "$$(gcloud auth application-default print-access-token)" --gcp-project "comradequinn" --gcs-bucket "comradequinn-default"
+VERTEX_AUTH= --access-token "$$(gcloud auth application-default print-access-token)" --gcp-project "comradequinn" --gcs-bucket "comradequinn-default"
 
 .PHONY: examples
 examples: build
@@ -30,7 +30,7 @@ examples: build
 	${BIN}/${NAME} -n -v -x "list all files in my current directory" 2>> ${BIN}/debug.log	
 	${BIN}/${NAME} -v -x "what do the files indicate may be the purpose of the directory?" 2>> ${BIN}/debug.log
 	${BIN}/${NAME} -v -n -x "generate a short story of around 50 words and write it to a file named my_story.log" 2>> ${BIN}/debug.log
-	${BIN}/${NAME} -v -n -x "summarise the targets in my Makefile" 2>> ${BIN}/debug.log	
+	${BIN}/${NAME} -a "$$GEMINI_API_TOKEN" -v -n -x "summarise the targets in my Makefile" 2>> ${BIN}/debug.log	
 	${BIN}/${NAME} ${VERTEX_AUTH} -n -v -x --script "list all .go files" 2>> ${BIN}/debug.log
 	${BIN}/${NAME} ${VERTEX_AUTH} -v -x -q "count them" 2>> ${BIN}/debug.log
 	${BIN}/${NAME} ${VERTEX_AUTH} -v -f main.go "how many lines in this file?" 2>> ${BIN}/debug.log

@@ -33,7 +33,7 @@ func main() {
 
 	log.FatalfIf(args.Script() && args.ExecutionApproval(), "command approval cannot be enabled in script mode")
 
-	apiCredential := args.VertexAccessToken()
+	apiCredential := args.AccessToken()
 
 	if apiCredential == "" {
 		apiCredential = os.Getenv("GEMINI_API_KEY")

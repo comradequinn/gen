@@ -16,7 +16,7 @@ type Args struct {
 	listSessions, listSessionsShort           *bool
 	restoreSession, restoreSessionShort       *int
 	deleteSession, deleteSessionShort         *int
-	vertexAccessToken, vertexAccessTokenShort *string
+	accessToken, accessTokenShort             *string
 	gcpProject, gcpProjectShort               *string
 	gcsBucket, gcsBucketShort                 *string
 	schemaDefinition, schemaDefinitionShort   *string
@@ -60,13 +60,14 @@ func ReadArgs(homeDir, app, proModel string) Args {
 		"access-token is specified, the cloud storage form is used and both -gcp-project and -gcs-bucket arguments must be also specified. the following placeholders are supported in custom urls and will be populated "+
 		"where specified and appropriate: {api-key}, {gcs-bucket}, {file-name}")
 
-	args.vertexAccessToken, args.vertexAccessTokenShort = flagDef(flag.String, "vertex-access-token", "a", "the access token to present to the vertex-ai (gcp) gemini api endpoint. specifying a vertex-access-token will cause the "+
-		"vertex-ai (gcp) canonical endpoint to be used (unless a custom url is provided)", "")
+	args.accessToken, args.accessTokenShort = flagDef(flag.String, "access-token", "a", "the access token to present to the gemini api endpoint. by default the value of $GEMINI_API_KEY is used. when using gemini via "+
+		"vertex-ai (gcp) this value  should be set to an application-default-credentials access-token", "")
 
 	args.gcpProject, args.gcpProjectShort = flagDef(flag.String, "gcp-project", "p", "the gcp project to include in the gemini api url. specifying a gcp-project will cause the vertex-ai (gcp) canonical endpoint to be "+
 		"used (unless a custom url is provided)", "")
 
-	args.gcsBucket, args.gcsBucketShort = flagDef(flag.String, "gcs-bucket", "b", "the cloud storage (gcp) bucket to upload files to when using the gemini api via a vertex-ai (gcp) endpoint", "")
+	args.gcsBucket, args.gcsBucketShort = flagDef(flag.String, "gcs-bucket", "b", "the cloud storage (gcp) bucket to upload files to when using the gemini api via a vertex-ai (gcp) endpoint. specifying a gcp-project "+
+		"will cause the vertex-ai (gcp) canonical endpoint to be used (unless a custom url is provided)", "")
 
 	args.executionEnabled, args.executionEnabledShort = flagDef(flag.Bool, "exec", "x", fmt.Sprintf("whether to enable command execution. when enabled prompts should relate to interacting with the local host environment "+
 		"in some form. responses will typically result in %v executing commands on behalf of the gemini api", app), false)
@@ -126,8 +127,8 @@ func (args Args) DeleteSession() int {
 	return readFlag("delete/d", args.deleteSession, args.deleteSessionShort)
 }
 
-func (args Args) VertexAccessToken() string {
-	return readFlag("vertex-access-token/a", args.vertexAccessToken, args.vertexAccessTokenShort)
+func (args Args) AccessToken() string {
+	return readFlag("access-token/a", args.accessToken, args.accessTokenShort)
 }
 
 func (args Args) GCPProject() string {

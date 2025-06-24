@@ -69,6 +69,8 @@ func (c executeTool) marshalJSON() json.RawMessage {
 		"consider when structuring commands that it may result in better data transmission effificiencies have commands write to output local temporary files. you can then issue a follow up %v function call to upload those files for "+
 		"for processing. when this completed. you can then issue a final command to remove those temporary files, however, ensure you only delete those temporary files you created, and no others. "+
 		""+
+		"do not include 'sudo' in any of your commands. just attempt the command without it. if the user does not have sufficient permissions, suggest they re-run you as sudo adn retry. "+
+		""+
 		"when interpreting the result of the command consider that a successful command will always have a return code of '0'. the return code is passed in the returnCode field ('function_response.response.returnCode') and "+
 		"the content of that field is the only value you need to ascertain success. if output from the command is expected, this will be found in the stdout field (`function_response.response.stdout`); this data represents the "+
 		"data written to stdout by the command when it was executed on the user's machine. it is important to note that many commands do not write any data to stdout at all. so do not interpret an empty stdout "+

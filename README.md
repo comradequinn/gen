@@ -1,8 +1,8 @@
 # gen
 
-Named `gen` (from `generate`), `gen` is an agentic, command-line `llm` interface built on Google's `Gemini` models. 
+Named `gen` (from `generate`), `gen` is an agentic, command-line `llm` interface built on Google's `Gemini` models.
 
-Using `gen` greatly simplifies integrating LLM capabilities into CI pipelines, scripts or other automation. 
+Using `gen` greatly simplifies integrating LLM capabilities into CI pipelines, scripts or other automation.
 
 For terminal users, `gen` acts as a fully-featured conversational, agentic assistant.
 
@@ -18,13 +18,12 @@ Using `gen` provides the following features:
 
 * Fully scriptable and ideal for use in automation and CI pipelines
 
-* Include text, code, image and pdf files in prompts; either explictly or let `gen` discover and upload what it needs to complete the task
-  
-* Model configuration; specify general and use-case based `system-prompt` content, custom `models`, `temperature` and `top-p` to fine-tune output
+* Include text, code, image and pdf files in prompts; either explicitly or let `gen` discover and upload what it needs to complete the task
+ * Model configuration; specify general and use-case based `system-prompt` content, custom `models`, `temperature` and `top-p` to fine-tune output
 
 ## Quick Start
 
-These examples show typical sequences for the two forms of `gen` usage: interactive and scripted. For those familiar with the command line, scripting and LLMs, they are likely enough you to become productive with `gen`. 
+These examples show typical sequences for the two forms of `gen` usage: interactive and scripted. For those familiar with the command line, scripting and LLMs, they are likely enough for you to become productive with `gen`.
 
 Installation instructions are provided in the [next section](#installation).
 
@@ -34,58 +33,58 @@ The following example shows the fundamentals of interactive, conversational usag
 
 ```bash
 # ask a question (-n is the shortform of --new, and initiates a new conversation)
-gen -n "what is the latest version of go?" 
+gen -n "what is the latest version of go?"
 # >> The latest stable version of Go is.... (response truncated for brevity)
 
 # ask a follow up question relying on the previous question for context (by omitting the -n/--new flag)
-gen "what were the major amendments in that release?" 
+gen "what were the major amendments in that release?"
 # >> the release introduced several significant amendments across its toolchain, runtime and... (response truncated for brevity)
 
 # stash the existing conversational context and start a new session
-gen -n "what is the weather like in london tomorrow?" 
+gen -n "what is the weather like in london tomorrow?"
 # >> In London tomorrow it will be grey and wet... (response truncated for brevity)
 
 # show current and active conversation sessions, the asterix indicates the active session (-l is the shortform of --list)
-gen -l 
-   #1 (April 26 2025): what is the latest version of go?
+gen -l
+  #1 (April 26 2025): what is the latest version of go?
 *  #2 (April 26 2025): what is the weather like in london tomorrow?
 
 # switch the active session back to the earlier topic (-r is the shortform of --restore)
-gen -r 1 
+gen -r 1
 
 # ask a follow up question relying on context from the restored session
-gen "was this a major or minor release?" 
+gen "was this a major or minor release?"
 # >> It was a minor release. Go follows a versioning scheme that.... (response truncated for brevity)
 
 # explictly attach a file to the prompt and ask a question related to its contents (-f is the  shortform of --files)
-gen -n -f ./main.go "summarise this code in this file" 
+gen -n -f ./main.go "summarise this code in this file"
 # >> This is a Go program, named 'gen'. It functions as a command-line interface for interacting.... (response truncated for brevity)
 
 # use exec mode to allow gen to directly execute commands to complete tasks (-x is the shortform of --exec)...
-# ...this is the same request as above but without attaching the file explicitly 
-gen -n -x "summarise the code in main.go" 
+# ...this is the same request as above but without attaching the file explicitly
+gen -n -x "summarise the code in main.go"
 # >> reading file 'main.go'...
 # >> This is a Go program, named 'gen'. It functions as a command-line interface for interacting.... (response truncated for brevity)
 
 # directly execute and interpret terminal commands to perform tasks
-gen -n -x "list all .go files in my current directory" 
+gen -n -x "list all .go files in my current directory"
 # >> executing... [ls -l *.go]
 # >> main.go
 
 # execute a follow up task using the previous task for context
-gen -x "copy the files to a directory named 'backup'" 
+gen -x "copy the files to a directory named 'backup'"
 # >> executing... [mkdir -p backup; cp *.go backup/]
 # >> OK
 
-# access and parse external resources 
-gen -n -x "write the contents returned from github's home page to a file named github.html" 
+# access and parse external resources
+gen -n -x "write the contents returned from github's home page to a file named github.html"
 # >> executing... [curl https://github.com > github.html]
 # >> OK
 
 # interact with the host system
-gen -n -x "get the pids, names and cpu and mem usage of the top 5 processes running by cpu. format this in markdown as a table" 
+gen -n -x "get the pids, names and cpu and mem usage of the top 5 processes running by cpu. format this in markdown as a table"
 # >> executing... [ps -eo pid,cmd,%cpu,%mem --sort=-%cpu | head -n 6]
-# >> 
+# >>
 # >> | PID | CMD | %CPU | %MEM |
 # >> |---|---|---|---|
 # >> | 1331 | /home/me/process/job1 | 6.2 | 5.6 |
@@ -95,7 +94,7 @@ gen -n -x "get the pids, names and cpu and mem usage of the top 5 processes runn
 # >> | 2058 | /home/me/process/job3 | 0.5 | 0.4 |
 
 # use the 'pro' model to handle more complex tasks
-gen -n -x -pro "perform a code review on the main.go file" 
+gen -n -x -pro "perform a code review on the main.go file"
 # >> reading file 'main.go'...
 # >> This is a solid, well-written `main.go` file for a command-line application. It demonstrates good Go programming... (response truncated for brevity)
 ```
@@ -106,20 +105,24 @@ gen -n -x -pro "perform a code review on the main.go file"
 
 The following example describes how to use `gen` to perform a basic code review of a given file and return the result in a specific, consistent `json` format. Making it suitable for use in automation.
 
-For clarity, note that the below command...
+For clarity, note the below command...
 
 ```bash
-# start a new gen session in --script mode (supresses output, -q can also be used). include the --files (main.go, -f can also be used) in the prompt and specify a --schema for the response (-s can also be used)
-gen --new --script --pro --files ./main.go \
-  --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality' "perform a code review on this file"
+# start a new gen session in --script mode (supresses output, -q can also be used). 
+# - include the --files (main.go, -f can also be used) in the prompt 
+# - specify a --schema in order to produce a structured response (-s can also be used)
+gen --new --script \
+   --files ./main.go \
+   --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality' \
+  "perform a code review on this file"
 ```
 
 ... will result in the following...
 
 ```json
 {
-  "quality": 1,
-  "reason": "The code is excellent. It is well-structured with clear separation of concerns into distinct packages (cli, gemini, log, schema, session). Error handling is robust and consistent, using a custom `log.FatalfIf` helper and a panic handler. Configuration is managed cleanly by populating a `Config` struct from parsed arguments. The logic is straightforward and easy to follow for a command-line application."
+ "quality": 1,
+ "reason": "The code is excellent. It is well-structured with clear separation of concerns into distinct packages (cli, gemini, log, schema, session). Error handling is robust and consistent, using a custom `log.FatalfIf` helper and a panic handler. Configuration is managed cleanly by populating a `Config` struct from parsed arguments. The logic is straightforward and easy to follow for a command-line application."
 }
 ```
 
@@ -127,48 +130,48 @@ Given this understanding, the script below demonstrates how this data can be use
 
 ```bash
 # perform the 'code review' and store the JSON response in a variable
-JSON=$(gen -n -q -f ./main.go --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file")  
+JSON=$(gen -n -q -f ./main.go --schema 'quality:integer:1 excellent, 5 terrible|reason:string:brief justification for the quality grade' "perform a code review on this file") 
 
 # parse the JSON into an array containing either the 'suggested improvements' or 'ok' and the associated exit code based on whether it was an 'ok' result or it required revising
 # - eg '[ 'ok', 0 ] or '[ 'horrific stuff, unreadable...', 1 ]
-RESULT=$(echo "$JSON" | jq -r 'if .quality > 2 then [.reason, 1] else ["ok", 0] end')  
+RESULT=$(echo "$JSON" | jq -r 'if .quality > 2 then [.reason, 1] else ["ok", 0] end') 
 
 # print either 'ok' or the suggested improvements
-echo "$RESULT" | jq -r '.[0]'   
+echo "$RESULT" | jq -r '.[0]'  
 
 # exit with a return code derived from whether the minimum required quality was met
-exit "$(echo "$RESULT" | jq -r '.[1]')" 
+exit "$(echo "$RESULT" | jq -r '.[1]')"
 ```
 
 #### Agentic Actions
 
-The following example describes how to use `gen` to perform a agentic tasks in a script, in this case another variant on the automated code review of a given file. As this is a script, the longform of arguments is used for improved readability, though this entirely optional.
+The following example describes how to use `gen` to perform agentic tasks in a script, in this case another variant on the automated code review of a given file. As this is a script, the longform of arguments is used for improved readability, though this entirely optional.
 
 ```bash
-gen --new --exec --script "perform a code review on the main.go file. 
-write a single integer quality result value to a new file named 'result.txt', 
-with 1 being 'excellent' and 5, 'poor'. 
-if the result is not 1, write a justifification as to what needs improving
-to a new file named 'feedback.txt'. finally, if the result was not 1, issue a 
+gen --new --exec --script "perform a code review on the main.go file.
+write a single integer quality result value to a new file named 'result.txt',
+with 1 being 'excellent' and 5, 'poor'.
+if the result is not 1, write a justification as to what needs improving
+to a new file named 'feedback.txt'. finally, if the result was not 1, issue a
 command to terminate the process with a return code of of 2"
 
 case $? in
-    0)
-        # take whatever action is required for a completed code review with a positive outcome...
-        echo "code review completed. code is excellent. score $(cat result.txt)" 
-        ;;
-    1)
-        # take whatever action is required for code review that could not be completed due to an error executing the commands...
-        echo "an error prevented the code review being undertaken" 
-        ;;
-    2)
-        # take whatever action is required for a completed code review with a negative outcome...
-        echo "code review completed. code is poor. detailed feedback: $(cat feedback.txt)" 
-        ;;
-    *)
-        # default error case for any other exit codes
-        echo "an unknown error occurred. exit code: $?"
-        ;;
+   0)
+       # take whatever action is required for a completed code review with a positive outcome...
+       echo "code review completed. code is excellent. score $(cat result.txt)"
+       ;;
+   1)
+       # take whatever action is required for code review that could not be completed due to an error executing the commands...
+       echo "an error prevented the code review being undertaken"
+       ;;
+   2)
+       # take whatever action is required for a completed code review with a negative outcome...
+       echo "code review completed. code is poor. detailed feedback: $(cat feedback.txt)"
+       ;;
+   *)
+       # default error case for any other exit codes
+       echo "an unknown error occurred. exit code: $?"
+       ;;
 esac
 ```
 
@@ -176,12 +179,12 @@ When executed, the above will cause `gen` to silently perform all the tasks and 
 
 ## Installation
 
-To install `gen`, download the appropriate tarball for your `os` from the [releases](https://github.com/comradequinn/gen/releases/) page. Extract the binary and place it somewhere accessible to your `$PATH` variable. 
+To install `gen`, download the appropriate tarball for your `os` from the [releases](https://github.com/comradequinn/gen/releases/) page. Extract the binary and place it somewhere accessible to your `$PATH` variable.
 
 Optionally, you can use the below script to do that for you
 
 ```bash
-export VERSION="v1.3.4"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
+export VERSION="v1.3.5"; export OS="linux-amd64"; wget "https://github.com/comradequinn/gen/releases/download/${VERSION}/gen-${VERSION}-${OS}.tar.gz" && tar -xf "gen-${VERSION}-${OS}.tar.gz" && rm -f "gen-${VERSION}-${OS}.tar.gz" && chmod +x gen && sudo mv gen /usr/local/bin/
 ```
 
 ### Authentication
@@ -192,9 +195,9 @@ You can configure `gen` to access the `Gemini API` either via the publicly avail
 
 To use `gen` via the `Generative Language API`, set and export your `Gemini API Key` as the conventional environment variable for that value: `GEMINI_API_KEY`.
 
-If you do not already have a `Gemini API Key`, they are available free from [Google AI Studio](https://aistudio.google.com), [here](https://aistudio.google.com/apikey). 
+If you do not already have a `Gemini API Key`, they are available free from [Google AI Studio](https://aistudio.google.com), [here](https://aistudio.google.com/apikey).
 
-For convenience, you may wish to add the envar definition to your `~/.bashrc` file. An example of doing this is shown below. 
+For convenience, you may wish to add the envar definition to your `~/.bashrc` file. An example of doing this is shown below.
 
 ```bash
 # file: ~/.bashrc
@@ -204,7 +207,48 @@ export GEMINI_API_KEY="myPriVatEApI_keY_1234567890"
 
 Remember that you will need to open a new terminal or `source` the `~/.bashrc` file for the above to take effect.
 
-Once this is done, `gen` will default to using the `Generative Language API` and your `GEMINI_API_KEY` unless you explicitly specifiy `Vertex AI (Google Cloud Platform)` credentials to use instead; in which case they will take precedence.
+Once this is done, `gen` will default to using the `Generative Language API` and your `GEMINI_API_KEY` unless you explicitly specify `Vertex AI (Google Cloud Platform)` credentials to use instead; in which case they will take precedence.
+
+##### Enabling Sudo
+
+To enable `gen` to be used with `sudo`, the `Gemini API Key` must be passed explicitly, rather than inferred from the `GEMINI_API_KEY` envar. To do this directly, run `gen` with the `--access-token` argument (or `-a`) and pass the value of the envar as shown below.
+
+```bash
+gen -a "$GEMINI_API_KEY" -n -x "create the directory /etc/temp-gen"
+# >> executing... [mkdir /etc/temp-gen]
+# >> Error: mkdir: cannot create directory ‘/etc/temp-gen’: Permission denied
+```
+
+As shown, the above fails with a permission error. However, prefixing it with `sudo` in the usual manner will allow `gen's` privileges to be escalated (_as long as the `GEMINI_API_KEY` is passed explicitly_). This is shown below.
+
+```bash
+sudo gen -a "$GEMINI_API_KEY" -n -x "create the directory /etc/temp-gen"
+# >> [sudo] password for user: ********
+# >> executing... [mkdir /etc/temp-gen]
+# >> OK
+```
+
+To enable `sudo` support by default, as with any command executed via a `posix` compliant shell, `aliases` can be used to assign defaults arguments. An example is shown below that configures `gen` to run in the above manner, by default.
+
+```bash
+# file: ~/.bashrc
+
+export GEMINI_API_KEY="myPriVatEApI_keY_1234567890"
+
+alias sudo='sudo ' # ensure sudo is aliased to enable subsequent alias expansion
+alias gen="gen --access-token \"$GEMINI_API_KEY\""
+```
+
+> Note that the alias is not configured to embed `sudo` directly, only to allow `sudo` to be effective when specified. It is not advisable to run `gen` in `sudo` at all times, for the usual reasons of security and system protection.
+
+With the above alias configured, `gen` can be be run with `sudo` without specifying the `access-token`. As shown below.
+
+```bash
+sudo gen -x "remove the directory"
+# >> [sudo] password for user: ********
+# >> executing... [rmdir /etc/temp-gen]
+# >> OK
+```
 
 #### Vertex AI (Google Cloud Platform)
 
@@ -214,25 +258,25 @@ To use `gen` with a `Vertex AI` `Gemini API` endpoint, firstly configure `ADC (a
 gcloud auth application-default login --disable-quota-project
 ```
 
-You can then render `access tokens` using `gcloud auth application-default print-access-token`. These can be passed to `gen` using a `--vertex-access-token` (or `-a`) argument. A `GCP Project` and a `GCS Bucket` must also be specified, using `--gcp-project` (or `-p`) and `--gcs-bucket` (or `-b`), respectively. An example is shown below.
+You can then render `access tokens` using `gcloud auth application-default print-access-token`. These can be passed to `gen` using an `--access-token` (or `-a`) argument. A `GCP Project` and a `GCS Bucket` must also be specified, using `--gcp-project` (or `-p`) and `--gcs-bucket` (or `-b`), respectively. An example is shown below.
 
 ```bash
-gen --new --vertex-access-token "$(gcloud auth application-default print-access-token)" --gcp-project "my-project" --gcs-bucket "my-bucket" "what is the weather like in London tomorrow?"
+gen --new --access-token "$(gcloud auth application-default print-access-token)" --gcp-project "my-project" --gcs-bucket "my-bucket" "what is the weather like in London tomorrow?"
 ```
 
 When you specify `Vertex AI` credentials, they take precedence over any `GEMINI_API_KEY` you may have set to authenticate with the `Generative Language API`.
 
-##### Configuring Defaults
+#### Configuring Defaults
 
 As with any command executed via a `posix` compliant shell, `aliases` can be used to assign defaults arguments. An example is shown below that configures a default `access-token` and `gcp-project`.
 
 ```bash
 # file: ~/.bashrc
 
-alias gen='gen --vertex-access-token "$(gcloud auth application-default print-access-token)" --gcp-project "my-project" --gcs-bucket "my-bucket"'
+alias gen='gen --access-token "$(gcloud auth application-default print-access-token)" --gcp-project "my-project" --gcs-bucket "my-bucket"'
 ```
 
-Users of the shell can then simply run `gen` directly and implicitly use the those `gcp credentials`. As shown below.
+Users of the shell can then simply run `gen` directly and implicitly use those `gcp credentials`. As shown below.
 
 ```bash
 gen -n "what is the weather like in London tomorrow?"
@@ -242,7 +286,7 @@ gen -n "what is the weather like in London tomorrow?"
 
 To remove `gen`, delete the binary from `/usr/bin` (or the location it was originally installed to). You may also wish to delete its application directory. This stores user preferences and session history and is located at `~/.gen`.
 
-## Usage 
+## Usage
 
 ### Prompting
 
@@ -255,7 +299,7 @@ gen -n "how do I list all files in my current directory?"
 # >> This command will display all files, including hidden files (files starting with a dot).
 ```
 
-To ask a follow up question, run `gen` again with the required prompt but without specifying `-n` or `--new`. The conversation context from the previouos prompt will then be maintained. 
+To ask a follow up question, run `gen` again with the required prompt but without specifying `-n` or `--new`. The conversation context from the previous prompt will then be maintained.
 
 ```bash
 gen "I need timestamps in the output"
@@ -283,12 +327,12 @@ To restore a previous session, allowing you to continue that conversation as it 
 gen --r 1
 ```
 
-Running `gen -l` again will now show the below; note how the asterix is now positioned at record `1`
+Running `gen -l` again will now show the below; note how the asterisk is now positioned at record `1`
 
 ```bash
 gen -l
 * #1 (April 15 2025): 'how do i list all files in my current directory?'
-  #2 (April 15 2025): 'what was my last question?'
+ #2 (April 15 2025): 'what was my last question?'
 ```
 
 Asking the prompt from earlier, of `gen "what was my last question?"`, will now return the below, as that context has been restored.
@@ -301,11 +345,11 @@ To delete a single session, run `gen --delete #id` (or `-d #id`) where `#id` is 
 
 ### Agentic Actions
 
-To run `gen` in `exec` mode, pass the `--exec` (or `-x`) flag. 
+To run `gen` in `exec` mode, pass the `--exec` (or `-x`) flag.
 
 When running in `exec` mode, `gen` behaves `agentically`. It is able to execute commands as your user in order to perform tasks on your behalf. These tasks can effectively be anything that you could undertake yourself and can also contain multiple steps. The exception to this is long running programs. Asking `gen` to capture all tcp traffic to a host will work, but if you do not also specify some form of exit condition, the command will run indefinitely and the result will never be collected and forwarded to `gemini` in order for it to respond; `gen` will just appear to hang.
 
-The `--exec` flag is scoped to each invidual prompt, so agentic capabilities can be variably enabled or disabled on individual prompts within with the same conversation. 
+The `--exec` flag is scoped to each individual prompt, so agentic capabilities can be variably enabled or disabled on individual prompts within the same conversation.
 
 For security purposes, it is impossible for `gen` to execute commands without the `--exec` (or `-x`) flag, and conversely, take extra caution with your prompts when `exec` mode is enabled. If you would prefer to approve each command that `gen` requests before it is executed, pass the `--approve` (or `-k`) flag along with `--exec`.
 
@@ -317,7 +361,7 @@ An example is shown below of using agentic mode in a conversation.
 # ask for support with a task, as --exec is not specified, gen will explain how to do something, rather than simply doing it
 gen -n "how would I list all files in this directory, excluding any git files, that were modified in the last day?"
 # >> To list all files in the current directory, excluding any git-related files, that were modified in the last day, use the following command:
-# >> 
+# >>
 # >> find . -type f -mtime -1 -not -path '*/.git/*' -not -name '.gitignore' -not -name '.gitmodules' -not -name '.gitattributes'
 
 # switch to exec mode by passing --exec flag for the next prompt and use the previous context to infer the action gen is take
@@ -345,7 +389,7 @@ gen -n -x "can I use the code in this repo for commercial purposes?"
 
 ### System Prompt Configuration
 
-The default system prompt provides the `Gemini API` with the context that it is being prompted from a terminal process on your specific `OS` and to format responses appropriately. 
+The default system prompt provides the `Gemini API` with the context that it is being prompted from a terminal process on your specific `OS` and to format responses appropriately.
 
 Should you wish to change this, pass a `--system-prompt` value along with the prompt to `gen`, as shown below.
 
@@ -361,11 +405,11 @@ gen -n --use-case "you are assisting a go/linux software engineer based in staff
 # >> Okay, here are some options for Go/Linux software engineer jobs in and around Staffordshire... (response truncated for brevity)
 ```
 
-Any such information you provide is only used to augment requests sent to the `Gemini API`. It is not stored or transmitted in any other form or for any other purpose, under any circumstances. 
+Any such information you provide is only used to augment requests sent to the `Gemini API`. It is not stored or transmitted in any other form or for any other purpose, under any circumstances.
 
 #### Configuring Defaults
 
-As with any command executed via a `posix` compliant shell, `redirection` can be used to faciliate reading arguments from files and `aliases` used to assign defaults arguments. 
+As with any command executed via a `posix` compliant shell, `redirection` can be used to facilitate reading arguments from files and `aliases` used to assign defaults arguments.
 
 An example is shown below that combines both methods to configure a shell in which running `gen` applies a custom system prompt that, for the sake of illustration, is defined in a shared file. Such files could be used to share common system prompts, for instance. If such a feature is not needed, the system-prompt could simply be defined in a variable or hard coded into the alias.
 
@@ -388,16 +432,16 @@ gen -n "in what context are we operating?"
 
 #### Configuring Multiple Modes
 
-By making further use of `aliases`, `gen` can be pre-configured for use in different `modes`. 
+By making further use of `aliases`, `gen` can be pre-configured for use in different `modes`.
 
 In the example below, two modes are configured, `architect` and `chat`
 
 ```bash
 # create an architecture "mode"
-alias gen-arc='gen --use-case "you are a wise and beardy architect with expertise in gcp, k8s, linux and go" --pro --temperature 0.1'  
+alias gen-arc='gen --use-case "you are a wise and beardy architect with expertise in gcp, k8s, linux and go" --pro --temperature 0.1' 
 
 # create an general chat "mode"
-alias gen-chat='gen --use-case "you are a helpful technical assistant" --temperature 0.3'  
+alias gen-chat='gen --use-case "you are a helpful technical assistant" --temperature 0.3' 
 ```
 Users of the shell can then just run `gen-arc` or `gen-chat` directly and access `gen` in that specific `mode`. As shown below.
 
@@ -438,7 +482,7 @@ gen -n --files "holday-fun.png" "what's in this image?"
 ```
 
 ```bash
-# attach multiple files, spaces are optional but can aid readability when listing many files explicitly. here we use the shorform of --files; -f
+# attach multiple files, spaces are optional but can aid readability when listing many files explicitly. here we use the shortform of --files; -f
 gen -n -f "some-code.go, somedir/some-more-code.go, yet-more-code.go" "summarise these files"
 ```
 
@@ -473,7 +517,7 @@ gen -n --no-grounding "how do I list all files in my current directory?"
 
 ### Scripting
 
-When using the output of `gen` in a script, it is advisable to supress activity indicators and other interactive output using the `--script` flag (or `-q`). This ensures a consistent output stream containing only response data.
+When using the output of `gen` in a script, it is advisable to suppress activity indicators and other interactive output using the `--script` flag (or `-q`). This ensures a consistent output stream containing only response data.
 
 The simple example below uses redirection to write the response to a file.
 
@@ -491,7 +535,7 @@ Blue
 
 Using `exec` mode in scripts is largely the same as using it conversationally. The key difference is that there is no user interaction. So `gen` cannot seek instruction on how to proceed after an error. Similarly when commands executed by `gen` fail, a script would typically expect `gen` to terminate and pass that exit code back to it; which is indeed how it behaves.
 
-You can also instruct `gen` to exit with a specific return codes in your prompt too, an example is shown below.
+You can also instruct `gen` to exit with a specific return code in your prompt too, an example is shown below.
 
 ```bash
 gen -n --script -exec "ascertain the day of the week and then terminate the process with exit code 1 if it monday, 2 if is tuesday, or 3 otherwise"
@@ -505,7 +549,7 @@ echo "$?"
 
 By default, `gen` will request responses structured as free-form text, which is a sensible format for conversational use. However, in many scenarios, particularly CI and scripting use-cases, it is preferable to have the output in a structured form. To this end, `gen` allows you to specify a schema, using `--schema` (or `-s`), that will be used to structure the response.
 
-There are two methods of specifying a schema, either by using `GSL` (`gen`'s `s`chema `l`anguage) or by providing a JSON based `OpenAPI schema object`. 
+There are two methods of specifying a schema, either by using `GSL` (`gen`'s `s`chema `l`anguage) or by providing a JSON based `OpenAPI schema object`.
 
 In either case, note that `grounding` will be implicitly disabled when using a `schema`, this is a current stipulation of the `Gemini API`, not `gen` itself.
 
@@ -529,7 +573,7 @@ Providing a description can be useful for both the LLM and the user in understan
 To have the pattern be interpreted as a template for the elements of an array, rather than a singular response item, prefix the definition with `[]`,  as shown below.
 
 ```bash
-[]field-name:type # for example, an array of elements, each of the form 'result:integer'...n # 
+[]field-name:type # for example, an array of elements, each of the form 'result:integer'...n #
 ```
 
 A simple example of executing `gen` with a `GSL` defined schema is shown below.
@@ -542,13 +586,13 @@ This will return a response similar to the following.
 
 ```json
 [
-  {"colour": "Red"},
-  {"colour": "Orange"},
-  {"colour": "Yellow"},
-  {"colour": "Green"},
-  {"colour": "Blue"},
-  {"colour": "Indigo"},
-  {"colour": "Violet"}
+ {"colour": "Red"},
+ {"colour": "Orange"},
+ {"colour": "Yellow"},
+ {"colour": "Green"},
+ {"colour": "Blue"},
+ {"colour": "Indigo"},
+ {"colour": "Violet"}
 ]
 ```
 
@@ -564,7 +608,7 @@ This will return a response similar to the following.
 
 ```json
 {
-  "colour": "Blue"
+ "colour": "Blue"
 }
 ```
 
@@ -574,7 +618,7 @@ It may be preferable to store complex `schemas` in a file rather than declaring 
 gen -n --schema "$(cat ./schema.json)" "pick a colour of the rainbow"
 ```
 
-## Model Configuration 
+## Model Configuration
 
 By default, `gen` uses the latest `flash` model at the time of release. By passing the `--pro` flag, you can switch to using the latest thinking model (at the time of release). You can also set the model directly, along with `temperature`, `top-p` and `token limits`. An example is shown below.
 
@@ -582,13 +626,13 @@ By default, `gen` uses the latest `flash` model at the time of release. By passi
 gen --model 'custom-gemini-exp-model-123' --temperature 0.1 --top-p 0.1 --max-tokens=1000 "how do I list all files in my current directory?"
 ```
 
-The effect of the above will be to make the responses more deterministic and favour correctness over 'imagination'. 
+The effect of the above will be to make the responses more deterministic and favour correctness over 'imagination'.
 
 While the effects of `top-p` and `temperature` are out of the scope of this document, briefly and simplistically; when the LLM is selecting the next token to include in its response, the value of `top-p` restricts the pool of potential next tokens that can be selected to the most probable subset. This is derived by selecting the most probable, one by one, until the cumulative probability of that selection exceeds the value of `p`. The `temperature` value is then used to weight the probabilities in that resulting subset to either level them out or emphasise their differences; making it less or more likely that the highest probability candidate will be chosen.
 
 ## Reporting on Usage
 
-Running `gen` with the `--stats` flag will cause usage data to be written to `stderr`. This allows it be processed separately from the main response. An example is shown below.
+Running `gen` with the `--stats` flag will cause usage data to be written to `stderr`. This allows it to be processed separately from the main response. An example is shown below.
 
 ```bash
 gen -n --stats "what is the weather like in london next week?"
@@ -600,15 +644,15 @@ This will produce output similar to the below
 The weather will be very hot next week
 
 {
-  "stats": {
-    "filesStored": "0",
-    "functionCall": "false",
-    "model": "gemini-2.5-flash",
-    "promptBytes": "45",
-    "responseBytes": "1077",
-    "systemPromptBytes": "761",
-    "tokens": "757"
-  }
+ "stats": {
+   "filesStored": "0",
+   "functionCall": "false",
+   "model": "gemini-2.5-flash",
+   "promptBytes": "45",
+   "responseBytes": "1077",
+   "systemPromptBytes": "761",
+   "tokens": "757"
+ }
 }
 ```
 
@@ -628,18 +672,19 @@ And the contents of `stats.txt` will be similar to the following.
 
 ```json
 {
-  "stats": {
-    "files": "0",
-    "functionCall": "false",
-    "model": "gemini-2.5-flash",
-    "promptBytes": "45",
-    "responseBytes": "1077",
-    "systemPromptBytes": "761",
-    "tokens": "757"
-  }
+ "stats": {
+   "files": "0",
+   "functionCall": "false",
+   "model": "gemini-2.5-flash",
+   "promptBytes": "45",
+   "responseBytes": "1077",
+   "systemPromptBytes": "761",
+   "tokens": "757"
+ }
 }
 ```
 
 ## Debugging
 
-To inspect the underlying Gemini API traffic that is generated by `gen`, run it with the `--verbose` (or `-v`) flag. Other arguments can be passed normal. With the `--verbose` flag specified, the `Gemini API` request and response payloads and other relevant data will be written to `stderr`. This output is in the form of JSON encoded structured logs. As the primary responses are written to `stdout` the debug component can easily be separated from the main content, for independent analysis, using standard `redirection` techniques.
+To inspect the underlying Gemini API traffic that is generated by `gen`, run it with the `--verbose` (or `-v`) flag. Other arguments can be passed normally. With the `--verbose` flag specified, the `Gemini API` request and response payloads and other relevant data will be written to `stderr`. This output is in the form of JSON encoded structured logs. As the primary responses are written to `stdout` the debug component can easily be separated from the main content, for independent analysis, using standard `redirection` techniques.
+
