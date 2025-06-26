@@ -10,9 +10,9 @@ import (
 
 // Args defines all command line arguments
 type Args struct {
-	script, scriptShort                       *bool
+	quiet, quietShort                         *bool
 	filePaths, filePathsShort                 *string
-	newSession, newSessionShort               *bool
+	continueSession, continueSessionShort     *bool
 	listSessions, listSessionsShort           *bool
 	restoreSession, restoreSessionShort       *int
 	deleteSession, deleteSessionShort         *int
@@ -43,9 +43,9 @@ func ReadArgs(homeDir, app, proModel string) Args {
 	args := Args{}
 
 	args.Version = flag.Bool("version", false, "print the version")
-	args.script, args.scriptShort = flagDef(flag.Bool, "script", "q", "quiet the output. supress activity indicators, such as spinners, to better support piping stdout into other utils when scripting", false)
+	args.quiet, args.quietShort = flagDef(flag.Bool, "quiet", "q", "quiet the output. supress activity indicators, such as spinners, to better support piping stdout into other utils when scripting", false)
 	args.filePaths, args.filePathsShort = flagDef(flag.String, "files", "f", "a comma separated list of files to attach to the prompt", "")
-	args.newSession, args.newSessionShort = flagDef(flag.Bool, "new", "n", "save any existing session and start a new one", false)
+	args.continueSession, args.continueSessionShort = flagDef(flag.Bool, "continue", "c", "continue the active conversation rather than starting a new", false)
 	args.listSessions, args.listSessionsShort = flagDef(flag.Bool, "list", "l", "list all sessions by id", false)
 	args.restoreSession, args.restoreSessionShort = flagDef(flag.Int, "restore", "r", "the session id to restore", 0)
 	args.deleteSession, args.deleteSessionShort = flagDef(flag.Int, "delete", "d", "the session id to delete", 0)
@@ -103,16 +103,16 @@ func ReadArgs(homeDir, app, proModel string) Args {
 	return args
 }
 
-func (args Args) Script() bool {
-	return readFlag("script/q", args.script, args.scriptShort)
+func (args Args) Quiet() bool {
+	return readFlag("quiet/q", args.quiet, args.quietShort)
 }
 
 func (args Args) FilePaths() string {
 	return readFlag("files/f", args.filePaths, args.filePathsShort)
 }
 
-func (args Args) NewSession() bool {
-	return readFlag("new/n", args.newSession, args.newSessionShort)
+func (args Args) ContinueSession() bool {
+	return readFlag("continue/c", args.continueSession, args.continueSessionShort)
 }
 
 func (args Args) ListSessions() bool {

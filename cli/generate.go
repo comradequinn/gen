@@ -4,20 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/comradequinn/gen/gemini"
 	"github.com/comradequinn/gen/log"
 	"github.com/comradequinn/gen/session"
 )
 
-func Generate(cfg gemini.Config, args Args, scriptMode bool, promptText, schema string, filePaths []string) {
+func Generate(cfg gemini.Config, args Args, quiet bool, promptText, schema string, filePaths []string) {
 	var err error
 
 	generate := func(prompt gemini.Prompt) gemini.Transaction {
 		stopSpinner := func() {}
-		if !scriptMode {
+		if !quiet {
 			stopSpinner = spin()
 		}
+
+		started := time.Now()
 
 		prompt.History, err = session.Read(*args.AppDir)
 		log.FatalfIf(err != nil, "unable to read history. %v", err)
@@ -42,6 +45,7 @@ func Generate(cfg gemini.Config, args Args, scriptMode bool, promptText, schema 
 					"tokens":            fmt.Sprintf("%v", transaction.Tokens),
 					"filesStored":       fmt.Sprintf("%v", len(transaction.Input.FileReferences)),
 					"functionCall":      fmt.Sprintf("%v", transaction.Output.IsFunction()),
+					"secondsElapsed":    fmt.Sprintf("%v", time.Since(started).Seconds()),
 				},
 			})
 		}
@@ -65,17 +69,17 @@ func Generate(cfg gemini.Config, args Args, scriptMode bool, promptText, schema 
 
 		switch {
 		case transaction.Output.IsExecuteRequest():
-			if prompt.ExecuteResult, err = execute(transaction.Output.ExecuteRequest, cfg, scriptMode); err != nil {
+			if prompt.ExecuteResult, err = execute(transaction.Output.ExecuteRequest, cfg, quiet); err != nil {
 				log.FatalfIf(err != nil, "error executing command '%v' on behalf of gemini. %v", transaction.Output.ExecuteRequest.Text, err)
 			}
-			if prompt.ExecuteResult.Code != 0 && scriptMode {
-				log.DebugPrintf(fmt.Sprintf("terminating with non-zero exit code as script/quiet mode was enabled when a command executed on behalf of gemini signalled the exit code %v", prompt.ExecuteResult.Code))
+			if prompt.ExecuteResult.Code != 0 && quiet {
+				log.DebugPrintf(fmt.Sprintf("terminating with non-zero exit code as quiet mode was enabled when a command executed on behalf of gemini signalled the exit code %v", prompt.ExecuteResult.Code))
 				os.Exit(prompt.ExecuteResult.Code)
 			}
 		case transaction.Output.IsReadRequest():
-			prompt.FilePaths, prompt.ReadResult = readFiles(transaction.Output.ReadRequest, scriptMode)
+			prompt.FilePaths, prompt.ReadResult = readFiles(transaction.Output.ReadRequest, quiet)
 		case transaction.Output.IsWriteRequest():
-			if prompt.WriteResult, err = writeFiles(transaction.Output.WriteRequest, scriptMode); err != nil {
+			if prompt.WriteResult, err = writeFiles(transaction.Output.WriteRequest, quiet); err != nil {
 				log.FatalfIf(err != nil, "error writing files on behalf of gemini. %v", err)
 			}
 		}

@@ -11,11 +11,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func writeFiles(request gemini.WriteRequest, scriptMode bool) (gemini.WriteResult, error) {
+func writeFiles(request gemini.WriteRequest, quiet bool) (gemini.WriteResult, error) {
 	g, ctx := errgroup.WithContext(context.Background())
 
 	for _, f := range request.Files {
-		if !scriptMode {
+		if !quiet {
 			WriteInfo("writing %v bytes to file '%v' ....", len(f.Data), f.Name)
 		}
 

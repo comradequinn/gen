@@ -11,7 +11,7 @@ import (
 	"github.com/comradequinn/gen/log"
 )
 
-func execute(request gemini.ExecuteRequest, cfg gemini.Config, scriptMode bool) (gemini.ExecuteResult, error) {
+func execute(request gemini.ExecuteRequest, cfg gemini.Config, quiet bool) (gemini.ExecuteResult, error) {
 	result := gemini.ExecuteResult{
 		Executed: true,
 	}
@@ -20,14 +20,14 @@ func execute(request gemini.ExecuteRequest, cfg gemini.Config, scriptMode bool) 
 		return result, fmt.Errorf("command text is empty")
 	}
 
-	if !scriptMode {
+	if !quiet {
 		WriteInfo("executing... [%v]", request.Text)
 	}
 
 	log.DebugPrintf("executing command locally", "type", "cmd_executing", "text", request.Text)
 
 	if cfg.ExecutionApproval {
-		Write("approval is required for the execution of the following script:\n\n")
+		Write("approval is required for the execution of the following:\n\n")
 		WriteInfo(request.Text + "\n")
 		Write("enter 'y' to approve the execution. enter any other value to deny: ")
 

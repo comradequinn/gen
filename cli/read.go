@@ -5,11 +5,11 @@ import (
 	"github.com/comradequinn/gen/log"
 )
 
-func readFiles(request gemini.ReadRequest, scriptMode bool) ([]string, gemini.ReadResult) {
+func readFiles(request gemini.ReadRequest, quiet bool) ([]string, gemini.ReadResult) {
 	for _, f := range request.FilePaths {
 		log.DebugPrintf("local file requested", "type", "file_request", "file", f)
 
-		if !scriptMode {
+		if !quiet {
 			WriteInfo("reading file '%v'...", f)
 		}
 	}

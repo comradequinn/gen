@@ -31,7 +31,7 @@ func main() {
 
 	log.Init(args.Debug(), cli.WriteError)
 
-	log.FatalfIf(args.Script() && args.ExecutionApproval(), "command approval cannot be enabled in script mode")
+	log.FatalfIf(args.Quiet() && args.ExecutionApproval(), "command approval cannot be enabled in quiet mode")
 
 	apiCredential := args.AccessToken()
 
@@ -44,8 +44,6 @@ func main() {
 		case *args.Version:
 			cli.Write("%v %v %v (pro-model: %v, flash-model: %v)\n", app, tag, commit, gemini.Models.Pro, gemini.Models.Flash)
 			os.Exit(0)
-		case args.NewSession():
-			session.Stash(*args.AppDir)
 		case args.RestoreSession() > 0:
 			err := session.Restore(*args.AppDir, args.RestoreSession())
 			log.FatalfIf(err != nil, "unable to restore session. %v", err)
@@ -64,6 +62,10 @@ func main() {
 			cli.ListSessions(records)
 			os.Exit(0)
 		}
+	}
+
+	if !args.ContinueSession() {
+		session.Stash(*args.AppDir)
 	}
 
 	log.FatalfIf(len(flag.Args()) != 1, "a single prompt is required")
@@ -106,5 +108,5 @@ func main() {
 		UseCase:           *args.UseCase,
 		ExecutionEnabled:  args.ExecutionEnabled(),
 		ExecutionApproval: args.ExecutionApproval(),
-	}, args, args.Script(), promptText, schema, filePaths)
+	}, args, args.Quiet(), promptText, schema, filePaths)
 }

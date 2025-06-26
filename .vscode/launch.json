@@ -11,10 +11,7 @@
             "mode": "auto",
             "program": "${fileDirname}",
              "args": [
-                "-n",
-                "-v",
-                "-x",
-                "summarise the targets in my Makefile"
+                "-l"
             ],
         }
     ]
