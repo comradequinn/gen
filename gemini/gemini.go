@@ -178,6 +178,8 @@ func Generate(cfg Config, prompt Prompt) (Transaction, error) {
 			Type:           prompt.InputType,
 			Text:           prompt.Text,
 			ExecuteResult:  prompt.ExecuteResult,
+			ReadResult:     prompt.ReadResult,
+			WriteResult:    prompt.WriteResult,
 			FileReferences: filesReferences,
 		},
 		Output: Output{

@@ -66,8 +66,8 @@ func (c executeTool) marshalJSON() json.RawMessage {
 		"when the command spans more than one statement, join these lines with a ';', do not use new lines. similarly, never add new lines for formatting, present it all as a single line. such formatting is not required as "+
 		"it can cause encoding errors with regexes and other escaped characters in the command, makes logs less readable as they need escaping and they are removed by the client before the user sees them anyway. "+
 		""+
-		"consider when structuring commands that it may result in better data transmission effificiencies have commands write to output local temporary files. you can then issue a follow up %v function call to upload those files for "+
-		"for processing. when this completed. you can then issue a final command to remove those temporary files, however, ensure you only delete those temporary files you created, and no others. "+
+		"consider when structuring commands that it may result in better data transmission efficiencies to have commands write to output local temporary files. you can then issue a follow up %v function call to upload those files for "+
+		"for processing. when you do create a file purely for the purposes of uploading data, you should issue a follow up command to remove those files to avoid leaving unexpected files on the users disk. "+
 		""+
 		"do not include 'sudo' in any of your commands. just attempt the command without it. if the user does not have sufficient permissions, suggest they re-run you as sudo adn retry. "+
 		""+
@@ -88,9 +88,11 @@ func (c executeTool) marshalJSON() json.RawMessage {
 		""+
 		"in the event the user's instructions require you to terminate the process with a particular exit code, the exact command required for that is simply 'exit {code}'. do not try to kill other processes or the terminal, "+
 		"just exit the current one using that command", c.ReadFunctionName())
-	readFunctionDesc := fmt.Sprintf("provides the content of all the files in the user's file system that are listed in the 'filePaths' arguments. this is to be used in support of the '%v' function as a more efficient "+
-		"alternative to accessing file contents by directly executing a command. use this function instead of executing 'cat file', for example. you can also use it upload data you have generated yourself "+
-		"more efficiently. for example if the user requests a command be executed, you could redirect the output to a file, then request that file using this function, then delete it after with a separate follow up command", c.ExecuteFunctionName())
+	readFunctionDesc := fmt.Sprintf("provides the content of all the files in the user's file system that are listed in the 'filePaths' arguments. you may use this to access local files that the user has referred to in their prompt in "+
+		"order to provide you with any required context. for example, if a user refers to the 'my data.txt' file or 'the Dockerfile', you can use this to view the contents of those files and help you process their request. "+
+		"this is also to be used in support of the '%v' function as a more efficient alternative to accessing file contents by directly executing a command. use this function instead of "+
+		"executing 'cat file', for example. you can also use it upload data you have generated yourself more efficiently. for example if the user requests a command be executed, you could redirect the output to a file, then request that "+
+		"file using this function. ", c.ExecuteFunctionName())
 	writeFunctionDesc := fmt.Sprintf("writes files to the users files system as specified in the files argument. this is to be used in support of the '%v' function as a more efficient "+
 		"and effective alternative to writing or modifying file contents by directly executing commands. for example, you could use this function instead of executing the command 'echo data > file.txt' or to avoid defining commands "+
 		"with complex transforms, using sed, grep and similar, to apply your required edits to files. Instead, just use this function to state what the exact contents of files should be. You can still use commands if that approach would be "+
@@ -172,7 +174,7 @@ func (r WriteResult) marshalJSON() json.RawMessage {
 	j, _ := json.Marshal(map[string]any{
 		"name": (executeTool{}).WriteFunctionName(),
 		"response": map[string]any{
-			"completed": r.Written,
+			"written": r.Written,
 		},
 	})
 

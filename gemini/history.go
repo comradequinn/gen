@@ -11,10 +11,12 @@ func addHistory(transactions []Transaction) []schema.Content {
 		}
 
 		switch {
-		case transaction.Input.IsCommandResult():
+		case transaction.Input.IsExecuteResult():
 			content.Parts = append(content.Parts, schema.Part{FunctionResponse: transaction.Input.ExecuteResult.marshalJSON()})
-		case transaction.Input.IsFilesRequestResult():
-			content.Parts = append(content.Parts, schema.Part{FunctionResponse: transaction.Input.FilesRequestResult.marshalJSON()})
+		case transaction.Input.IsReadResult():
+			content.Parts = append(content.Parts, schema.Part{FunctionResponse: transaction.Input.ReadResult.marshalJSON()})
+		case transaction.Input.IsWriteResult():
+			content.Parts = append(content.Parts, schema.Part{FunctionResponse: transaction.Input.WriteResult.marshalJSON()})
 		default:
 			if transaction.Input.Text != "" {
 				content.Parts = append(content.Parts, schema.Part{Text: transaction.Input.Text})

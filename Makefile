@@ -20,6 +20,7 @@ VERTEX_AUTH= --access-token "$$(gcloud auth application-default print-access-tok
 
 .PHONY: examples
 examples: build
+	@: "$${GEMINI_API_KEY:?set and export a GEMINI_API_KEY envar}"
 	${BIN}/${NAME} --delete-all 2> ${BIN}/debug.log
 	${BIN}/${NAME} --verbose "in one sentence, what is the weather like in london tomorrow?" 2>> ${BIN}/debug.log
 	${BIN}/${NAME} --continue -v "what about the day after?" 2>> ${BIN}/debug.log
@@ -29,6 +30,8 @@ examples: build
 	${BIN}/${NAME} -v -s="[]colour:string:a rainbow colour" "list all colours of the rainbow" 2>> ${BIN}/debug.log
 	${BIN}/${NAME} -v -x --approve "list all files in my current directory" 2>> ${BIN}/debug.log	
 	${BIN}/${NAME} -c -x "what do the files indicate may be the purpose of the directory?" 2>> ${BIN}/debug.log
+	${BIN}/${NAME} -x -v "write 'hello' to data.txt" 2>> debug.log
+	${BIN}/${NAME} -x -c -v "read that file back to me" 2>> debug.log 
 	${BIN}/${NAME} -x "generate a short story of around 50 words and write it to a file named my_story.log" 2>> ${BIN}/debug.log
 	${BIN}/${NAME} -a "$$GEMINI_API_TOKEN" -v -x "summarise the targets in my Makefile" 2>> ${BIN}/debug.log	
 	${BIN}/${NAME} ${VERTEX_AUTH} -v -x --quiet "list all .go files" 2>> ${BIN}/debug.log

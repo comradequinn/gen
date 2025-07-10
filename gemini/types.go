@@ -25,12 +25,12 @@ type (
 	InputType  string
 	JSONSchema string
 	Input      struct {
-		Type               InputType       `json:"type"`
-		Text               string          `json:"text,omitempty,omitzero"`
-		FileReferences     []FileReference `json:"files,omitempty,omitzero"`
-		ExecuteResult      ExecuteResult   `json:"executeResult,omitzero"`
-		FilesRequestResult ReadResult      `json:"filesRequestResponse,omitzero"`
-		WriteFilesResult   WriteResult     `json:"writeFilesResult,omitzero"`
+		Type           InputType       `json:"type"`
+		Text           string          `json:"text,omitempty,omitzero"`
+		FileReferences []FileReference `json:"files,omitempty,omitzero"`
+		ExecuteResult  ExecuteResult   `json:"executeResult,omitzero"`
+		ReadResult     ReadResult      `json:"readResult,omitzero"`
+		WriteResult    WriteResult     `json:"writeResult,omitzero"`
 	}
 	Output struct {
 		Text           string         `json:"text,omitempty,omitzero"`
@@ -58,10 +58,14 @@ func (o Output) IsWriteRequest() bool {
 	return len(o.WriteRequest.Files) > 0
 }
 
-func (i Input) IsCommandResult() bool {
+func (i Input) IsExecuteResult() bool {
 	return i.ExecuteResult.Executed
 }
 
-func (i Input) IsFilesRequestResult() bool {
-	return i.FilesRequestResult.FilesAttached
+func (i Input) IsReadResult() bool {
+	return i.ReadResult.FilesAttached
+}
+
+func (i Input) IsWriteResult() bool {
+	return i.WriteResult.Written
 }
